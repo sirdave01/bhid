@@ -3,9 +3,14 @@
 // Once the connection is successful, it can be used to perform
 // various database operations such as querying, inserting, updating, and deleting records.
 
-import { pool } from 'pg';
+import { Pool } from 'pg';
 
-const pool = new pool({
-    
-  user: process.env.DB_USER,
-  host: process.env.DB_HOST,
+const pool = new Pool({
+
+  connectionString: process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false,
+  },
+});
+
+export default pool;
