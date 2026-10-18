@@ -14,22 +14,11 @@ import {
   createHash,
 } from "node:crypto";
 
+import { getJwtConfig } from "@/lib/jwt-keys";
+
 // --------------------------------------------------
 // JWT CONFIGURATION
 // --------------------------------------------------
-
-const ACCESS_PRIVATE_KEY =
-  process.env.JWT_ACCESS_PRIVATE_KEY?.replace(/\\n/g, "\n");
-
-const ACCESS_PUBLIC_KEY =
-  process.env.JWT_ACCESS_PUBLIC_KEY?.replace(/\\n/g, "\n");
-
-const JWT_ISSUER = "https://auth.bytehaven.world";
-
-// Validate required configuration when this module loads.
-if (!ACCESS_PRIVATE_KEY || !ACCESS_PUBLIC_KEY) {
-  throw new Error("JWT signing keys are not configured");
-}
 
 // --------------------------------------------------
 // BHID GENERATION
@@ -82,19 +71,21 @@ export function signAccessToken(
   input: AccessTokenInput,
   audience: string
 ): string {
+  const { issuer, keyId, privateKey } = getJwtConfig();
+
   return jwt.sign(
     {
       sid: input.sessionId,
       auth_version: input.authVersion,
     },
-    ACCESS_PRIVATE_KEY!,
+    privateKey,
     {
       algorithm: "RS256",
       subject: input.userId,
-      issuer: JWT_ISSUER,
+      issuer,
       audience,
       expiresIn: "10m",
-      keyid: process.env.JWT_ACCESS_KEY_ID,
+      keyid: keyId,
     }
   );
 }
@@ -103,9 +94,11 @@ export function verifyAccessToken(
   token: string,
   audience: string
 ): JwtPayload | string {
-  return jwt.verify(token, ACCESS_PUBLIC_KEY!, {
+  const { issuer, publicKey } = getJwtConfig();
+
+  return jwt.verify(token, publicKey, {
     algorithms: ["RS256"],
-    issuer: JWT_ISSUER,
+    issuer,
     audience,
   });
 }
