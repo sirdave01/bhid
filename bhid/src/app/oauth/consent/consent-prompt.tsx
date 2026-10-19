@@ -18,16 +18,22 @@ const scopeDescriptions: Record<string, string> = {
   bhid: "View your BHID identifier",
 };
 
+const REQUEST_ID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export default function ConsentPrompt({
   requestId,
 }: ConsentPromptProps) {
   const [consent, setConsent] = useState<ConsentData | null>(null);
-  const [error, setError] = useState("");
+  const [error, setError] = useState(
+    REQUEST_ID_PATTERN.test(requestId)
+      ? ""
+      : "This authorization request is invalid or has expired."
+  );
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (!/^[0-9a-f-]{36}$/i.test(requestId)) {
-      setError("This authorization request is invalid or has expired.");
+    if (!REQUEST_ID_PATTERN.test(requestId)) {
       return;
     }
 

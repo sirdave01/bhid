@@ -27,7 +27,7 @@ Milestone 4 — Session lifecycle
 [ ] Reject expired, revoked or reused refresh tokens
 [ ] Logout revokes the current session
 [ ] GET /api/auth/me validates token and current session/user state
-[ ] List and revoke individual sessions
+[x] List and revoke individual sessions
 [ ] Test expiration, logout and revocation
 
 Milestone 5 — Security hardening

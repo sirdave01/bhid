@@ -49,6 +49,17 @@ The planned authentication flow includes:
 
 Cross-application authentication will require appropriate OAuth 2.0 and OpenID Connect flows, registered clients, trusted redirect URIs, and audience validation.
 
+### First-party session management
+
+The signed-in account can inspect its active sessions and revoke an individual session:
+
+| Endpoint | Purpose |
+| --- | --- |
+| `GET /api/auth/sessions` | Return the authenticated user's active sessions, paginated with an optional opaque `cursor` |
+| `DELETE /api/auth/sessions/{id}` | Revoke one of the authenticated user's sessions; revoking the current session also clears its browser cookies |
+
+These endpoints validate the access token against the current user and session state in PostgreSQL. Session identifiers are scoped to the authenticated user, and the security settings page presents the active devices without exposing refresh-token values.
+
 ### Initial OAuth 2.0 / OpenID Connect provider
 
 The repository now includes an initial Authorization Code flow with PKCE and OpenID Connect endpoints:

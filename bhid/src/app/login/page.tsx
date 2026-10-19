@@ -1,3 +1,5 @@
+import { Suspense } from "react";
+
 import LoginForm from "./login-form";
 
 type LoginPageProps = {
@@ -32,18 +34,28 @@ function safeContinuePath(value: string | string[] | undefined) {
   }
 }
 
-export default async function LoginPage({
-  searchParams,
-}: LoginPageProps) {
-  const params = await searchParams;
-
+export default function LoginPage({ searchParams }: LoginPageProps) {
   return (
     <main className="mx-auto flex min-h-screen max-w-xl flex-col justify-center px-6 py-12">
       <h1 className="text-3xl font-semibold">Sign in to BHID</h1>
       <p className="mt-3 text-gray-600">
         Use your BHID account to continue securely.
       </p>
-      <LoginForm continueTo={safeContinuePath(params.continue)} />
+      <Suspense
+        fallback={
+          <p className="mt-8 text-sm text-gray-600">Preparing sign in…</p>
+        }
+      >
+        <ContinueLogin searchParams={searchParams} />
+      </Suspense>
     </main>
+  );
+}
+
+async function ContinueLogin({ searchParams }: LoginPageProps) {
+  const params = await searchParams;
+
+  return (
+    <LoginForm continueTo={safeContinuePath(params.continue)} />
   );
 }
