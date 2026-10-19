@@ -136,8 +136,8 @@ export async function POST(request: NextRequest) {
          backed_up,
          label
        )
-       RETURNING id
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       RETURNING id`,
       [
         session.userId,
         credential.id,

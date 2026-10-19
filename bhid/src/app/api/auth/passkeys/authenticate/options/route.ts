@@ -36,6 +36,8 @@ export async function POST() {
         challengeId: challengeResult.rows[0].id,
         options,
       },
+    }, {
+      headers: { "Cache-Control": "no-store" },
     });
   } catch (error) {
     console.error("Passkey authentication options failed:", error);

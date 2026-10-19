@@ -43,6 +43,8 @@ export async function GET(request: NextRequest) {
           lastUsedAt: credential.last_used_at?.toISOString() ?? null,
         })),
       },
+    }, {
+      headers: { "Cache-Control": "no-store" },
     });
   } catch (error) {
     console.error("Passkey list lookup failed:", error);
