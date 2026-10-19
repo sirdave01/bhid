@@ -1,17 +1,17 @@
 Milestone 1 — Local foundation
 [x] Generate and verify the local RSA key pair
 [x] Confirm .gitignore protects environment files and PEM keys
-[] Confirm Neon PostgreSQL connection works locally
-[ ] Confirm schema migrations have been applied successfully
-[ ] Confirm JWT key loader reads the configured PEM paths
+[x] Confirm Neon PostgreSQL connection works locally
+[x] Confirm schema migrations have been applied successfully
+[x] Confirm JWT key loader reads the configured PEM paths
 
 Milestone 2 — Registration
-[ ] Validate registration input with Zod
-[ ] Normalize email and enforce unique email/username rules
-[ ] Hash passwords using Argon2id
-[ ] Create user and profile in a database transaction
-[ ] Return a safe response without password hashes
-[ ] Test valid, invalid, duplicate and database-error cases
+[x] Validate registration input with Zod
+[x] Normalize email and enforce unique email/username rules
+[x] Hash passwords using Argon2id
+[x] Create user and profile in a database transaction
+[x] Return a safe response without password hashes
+[x] Test valid, invalid, duplicate and database-error cases
 
 Milestone 3 — Login and sessions
 [ ] Verify email/password securely
