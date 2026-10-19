@@ -1,15 +1,49 @@
-// this is the login page for the BHID application.
-// It handles user authentication and provides a form for users to enter their credentials.
-// The page includes validation for the username and password fields, ensuring that the input meets
-// the required criteria before submission.
+import LoginForm from "./login-form";
 
-export default function LoginPage() {
+type LoginPageProps = {
+  searchParams: Promise<{
+    continue?: string | string[];
+  }>;
+};
+
+function safeContinuePath(value: string | string[] | undefined) {
+  if (typeof value !== "string" || !value.startsWith("/")) {
+    return "/settings/security";
+  }
+
+  try {
+    const destination = new URL(value, "http://bhid.local");
+
+    if (
+      destination.origin !== "http://bhid.local" ||
+      ![
+        "/api/oauth/authorize",
+        "/oauth/consent",
+      ].includes(destination.pathname) ||
+      value.startsWith("//") ||
+      value.includes("\\")
+    ) {
+      return "/settings/security";
+    }
+
+    return `${destination.pathname}${destination.search}`;
+  } catch {
+    return "/settings/security";
+  }
+}
+
+export default async function LoginPage({
+  searchParams,
+}: LoginPageProps) {
+  const params = await searchParams;
+
   return (
-    <main className="mx-auto flex min-h-screen max-w-3xl flex-col justify-center px-6 py-12">
-      <h1 className="text-3xl font-semibold">BHID Login</h1>
+    <main className="mx-auto flex min-h-screen max-w-xl flex-col justify-center px-6 py-12">
+      <h1 className="text-3xl font-semibold">Sign in to BHID</h1>
       <p className="mt-3 text-gray-600">
-        The login interface is under development.
+        Use your BHID account to continue securely.
       </p>
+      <LoginForm continueTo={safeContinuePath(params.continue)} />
     </main>
   );
 }
