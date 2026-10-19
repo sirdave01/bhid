@@ -134,7 +134,7 @@ export async function POST(req: NextRequest) {
           dbError.constraint === "users_email_unique"
         ) {
           return NextResponse.json(
-            { success: false, message: "Email is already registered" },
+            { success: false, message: "Unable to register with those details" },
             { status: 409 }
           );
         }
@@ -146,7 +146,7 @@ export async function POST(req: NextRequest) {
           return NextResponse.json(
             {
               success: false,
-              message: "That username is unavailable",
+              message: "Unable to register with those details",
             },
             { status: 409 }
           );
