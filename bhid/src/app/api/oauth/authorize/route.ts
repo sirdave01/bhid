@@ -241,6 +241,7 @@ export async function GET(request: NextRequest) {
   try {
     const application = await findOAuthApplication(params.client_id);
 
+    // A callback is trusted only when it exactly matches a URI registered for this client.
     if (
       !application ||
       !application.redirect_uris?.includes(params.redirect_uri) ||

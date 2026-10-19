@@ -117,6 +117,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  // The JSON consent action rejects cross-origin form posts before touching state.
   if (!isSameOrigin(request)) {
     return invalidRequest();
   }
@@ -207,6 +208,7 @@ export async function POST(request: NextRequest) {
       );
       const authorizationRequest = requestResult.rows[0];
 
+      // The pending request is single-use and bound to the same authenticated session.
       if (!authorizationRequest) {
         await client.query("ROLLBACK");
         transactionOpen = false;

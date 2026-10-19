@@ -125,6 +125,7 @@ export function hasValidClientSecret(
   const suppliedHash = Buffer.from(hashToken(suppliedSecret), "hex");
   const expectedHash = Buffer.from(storedHash, "hex");
 
+  // Registered clients use high-entropy secrets, so a constant-time SHA-256 comparison is sufficient.
   return timingSafeEqual(suppliedHash, expectedHash);
 }
 
@@ -291,6 +292,7 @@ export function signOidcIdToken(
 }
 
 export function readOAuthTokenAudience(token: string): string | null {
+  // The decoded audience is only a lookup hint; callers must verify the JWT afterward.
   const decoded = jwt.decode(token);
 
   if (

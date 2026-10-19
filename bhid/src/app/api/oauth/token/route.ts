@@ -219,6 +219,7 @@ export async function POST(request: NextRequest) {
     );
     const authorizationCode = codeResult.rows[0];
 
+    // Locking the stored code makes redemption one-time even under concurrent requests.
     if (
       !authorizationCode ||
       !verifyPkce(verifier, authorizationCode.code_challenge)
