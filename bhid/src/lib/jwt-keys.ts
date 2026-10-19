@@ -23,6 +23,7 @@ function readPemFile(environmentVariable: string): string {
 
 type JwtConfig = {
   issuer: string;
+  audience: string;
   keyId: string;
   privateKey: string;
   publicKey: string;
@@ -37,15 +38,17 @@ export function getJwtConfig(): JwtConfig {
 
   const issuer = process.env.JWT_ISSUER;
   const keyId = process.env.JWT_ACCESS_KEY_ID;
+  const audience = process.env.JWT_ACCESS_AUDIENCE;
 
-  if (!issuer || !keyId) {
+  if (!issuer || !keyId || !audience) {
     throw new Error(
-      "JWT_ISSUER and JWT_ACCESS_KEY_ID must be configured"
+      "JWT_ISSUER, JWT_ACCESS_KEY_ID, and JWT_ACCESS_AUDIENCE must be configured"
     );
   }
 
   cachedJwtConfig = {
     issuer,
+    audience,
     keyId,
     privateKey: readPemFile("JWT_ACCESS_PRIVATE_KEY_PATH"),
     publicKey: readPemFile("JWT_ACCESS_PUBLIC_KEY_PATH"),

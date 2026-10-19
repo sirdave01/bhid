@@ -4,6 +4,7 @@
 // validation library that provides a simple and expressive way to define and validate data structures.
 
 import { z } from "zod";
+import z4 from "zod/v4";
 
 export const registerSchema = z.object({
   firstName: z
@@ -52,3 +53,22 @@ export const registerSchema = z.object({
 });
 
 export type RegisterInput = z.infer<typeof registerSchema>;
+
+// creating the loginSchema for validating login input data. 
+// It ensures that the email and password fields meet the required format and constraints, 
+// preventing potential errors and security issues.
+
+export const loginSchema = z.object({
+  email: z
+    .string()
+    .trim()
+    .email("Invalid email address")
+    .max(254, "Email is too long")
+    .transform((value) => value.toLowerCase()),
+  
+  password: z4
+    .string()
+    .min(12, "Password must be at least 12 characters long")
+    .max(128, "Password must be less than 128 characters or fewer"),
+});
+export type LoginInput = z.infer<typeof loginSchema>;
