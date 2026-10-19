@@ -129,6 +129,9 @@ function readAuthorizationRequest(request: NextRequest) {
     !redirectUri ||
     !responseType ||
     !scope ||
+    clientId.length > 256 ||
+    redirectUri.length > 2048 ||
+    scope.length > 4096 ||
     !state ||
     !nonce ||
     !codeChallenge ||

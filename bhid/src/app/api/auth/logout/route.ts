@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
     client = await pool.connect();
 
     const sessionResult = await client.query(
-      `SELECT id, user_id, token_family_id, revoked_at
+      `SELECT id, user_id, revoked_at
        FROM sessions
        WHERE token_hash = $1
        LIMIT 1`,
@@ -101,8 +101,11 @@ export async function POST(request: NextRequest) {
 
     return clearCookies(
       NextResponse.json(
-        { success: true, message: "Logged out successfully" },
-        { status: 200 }
+        {
+          success: false,
+          message: "Unable to sign out right now",
+        },
+        { status: 500 }
       )
     );
   } finally {

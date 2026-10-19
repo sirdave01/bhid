@@ -133,6 +133,7 @@ export async function POST(request: NextRequest) {
     (authorizationHeader !== null && !basicCredentials) ||
     grantType !== "authorization_code" ||
     !code ||
+    !/^[A-Za-z0-9_-]{43}$/.test(code) ||
     !redirectUri ||
     !verifier ||
     form.has("client_secret") ||

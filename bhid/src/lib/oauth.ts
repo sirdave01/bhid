@@ -85,6 +85,10 @@ function isOAuthTokenClaims(
 export async function findOAuthApplication(
   clientId: string
 ): Promise<OAuthApplication | undefined> {
+  if (!clientId || clientId.length > 256) {
+    return undefined;
+  }
+
   const result = await pool.query<OAuthApplication>(
     `SELECT
        id,
@@ -110,6 +114,8 @@ export function hasValidClientSecret(
   storedHash: string | null
 ): boolean {
   if (
+    !suppliedSecret ||
+    suppliedSecret.length > 1024 ||
     !storedHash ||
     !/^[0-9a-f]{64}$/i.test(storedHash)
   ) {
