@@ -49,6 +49,35 @@ The planned authentication flow includes:
 
 Cross-application authentication will require appropriate OAuth 2.0 and OpenID Connect flows, registered clients, trusted redirect URIs, and audience validation.
 
+### Initial OAuth 2.0 / OpenID Connect provider
+
+The repository now includes an initial Authorization Code flow with PKCE and OpenID Connect endpoints:
+
+| Endpoint | Purpose |
+| --- | --- |
+| `GET /.well-known/openid-configuration` | OIDC provider metadata |
+| `GET /.well-known/jwks.json` | Public RS256 signing key |
+| `GET /api/oauth/authorize` | Validate a registered client, redirect, scopes, PKCE challenge, and BHID session |
+| `GET /oauth/consent` | Show the user the requesting application and requested scopes |
+| `GET /api/oauth/consent` | Return consent details for the active BHID session |
+| `POST /api/oauth/consent` | Record consent or denial and complete the one-time authorization request |
+| `POST /api/oauth/token` | Authenticate the client and exchange a one-time code plus PKCE verifier |
+| `GET /api/oauth/userinfo` | Return only claims permitted by the validated access token's scopes |
+
+The provider accepts only the `authorization_code` grant and `S256` PKCE. Authorization requests require `response_type=code`, `state`, and `nonce`, and must include `openid`. Supported optional scopes are `email`, `profile`, and `bhid`; each optional scope must also be enabled for the registered application. Public applications use PKCE without a client secret. Confidential applications authenticate to the token endpoint with HTTP Basic and a high-entropy client secret whose SHA-256 hex digest is stored in `applications.client_secret_hash`.
+
+The existing `applications` table is the trusted client registry. Provision clients through a controlled database/admin workflow; do not expose an unauthenticated public client-registration endpoint. Redirect URIs are compared exactly to the registered list. Production web redirects must use HTTPS; HTTP is accepted only for loopback development clients. A migration adds short-lived, one-use authorization requests and codes plus remembered user consent:
+
+```powershell
+psql "$env:DATABASE_URL" -v ON_ERROR_STOP=1 -f .\database\migrations\001_oauth_authorization.sql
+```
+
+Review the target database and take the usual backup before applying migrations. The migration is not run by the application or build.
+
+OIDC tokens use RS256, the configured `JWT_ISSUER`, the application's `client_id` as audience, and a 10-minute lifetime. Authorization codes are stored only as SHA-256 hashes and expire after five minutes. The provider does not issue OAuth refresh tokens; `bhid_refresh` remains the first-party browser-session cookie. Applications that verify JWTs locally should use the JWKS endpoint and validate issuer, audience, expiry, and signature. Local signature validation cannot immediately observe revocation; use the UserInfo endpoint or short access-token lifetime when current session status must be checked.
+
+These routes are an initial provider implementation, not a claim of production certification. Apply the migration and run the end-to-end OIDC flow against a provisioned test application before enabling external clients. Client administration, consent revocation UI, rate limiting, key rotation, and protocol/security review remain operational follow-ups.
+
 ## Security Principles
 
 - Never store plaintext passwords.
@@ -78,7 +107,7 @@ Planned milestones include:
 - [ ] Current-user endpoint and session management
 - [ ] Authentication security hardening
 - [ ] Passkey registration and authentication
-- [ ] Cross-application OAuth 2.0 and OpenID Connect
+- [ ] Cross-application OAuth 2.0 and OpenID Connect (route implementation added; migration and end-to-end verification still required)
 - [ ] Production deployment and security testing
 
 Update this checklist as each feature is implemented and verified.
