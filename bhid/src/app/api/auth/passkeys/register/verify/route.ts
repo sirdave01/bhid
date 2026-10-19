@@ -125,7 +125,7 @@ export async function POST(request: NextRequest) {
 
     const credential = verification.registrationInfo.credential;
 
-    await client.query(
+    const savedCredential = await client.query<{ id: string }>(
       `INSERT INTO webauthn_credentials (
          user_id,
          credential_id,
@@ -136,6 +136,7 @@ export async function POST(request: NextRequest) {
          backed_up,
          label
        )
+       RETURNING id
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
       [
         session.userId,
@@ -162,7 +163,7 @@ export async function POST(request: NextRequest) {
       success: true,
       message: "Passkey added",
       data: {
-        passkeyId: credential.id,
+        passkeyId: savedCredential.rows[0].id,
         label: challenge.label,
       },
     });

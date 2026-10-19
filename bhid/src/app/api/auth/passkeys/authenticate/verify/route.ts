@@ -49,7 +49,17 @@ export async function POST(request: NextRequest) {
     return invalidRequest();
   }
 
-  const config = getWebAuthnConfig();
+  let config;
+
+  try {
+    config = getWebAuthnConfig();
+  } catch (error) {
+    console.error("Passkey relying-party configuration failed:", error);
+    return NextResponse.json(
+      { success: false, message: "Passkey sign-in is unavailable right now" },
+      { status: 500 }
+    );
+  }
   const refreshToken = generateRefreshToken();
   const refreshTokenHash = hashToken(refreshToken);
   const now = Date.now();

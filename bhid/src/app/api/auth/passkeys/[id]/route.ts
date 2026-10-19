@@ -8,7 +8,7 @@ const UUID_PATTERN =
 
 export async function DELETE(
   request: NextRequest,
-  context: RouteContext<"/api/auth/passkeys/[id]">
+  context: { params: Promise<{ id: string }> }
 ) {
   const { id } = await context.params;
 
