@@ -46,6 +46,20 @@ export function getJwtConfig(): JwtConfig {
     );
   }
 
+  const issuerUrl = new URL(issuer);
+  const localIssuerHosts = new Set(["localhost", "127.0.0.1", "[::1]"]);
+
+  if (
+    issuerUrl.username ||
+    issuerUrl.password ||
+    issuerUrl.search ||
+    issuerUrl.hash ||
+    (issuerUrl.protocol !== "https:" &&
+      !localIssuerHosts.has(issuerUrl.hostname))
+  ) {
+    throw new Error("JWT_ISSUER must be HTTPS except for local development");
+  }
+
   cachedJwtConfig = {
     issuer,
     audience,

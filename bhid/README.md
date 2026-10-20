@@ -60,6 +60,29 @@ The signed-in account can inspect its active sessions and revoke an individual s
 
 These endpoints validate the access token against the current user and session state in PostgreSQL. Session identifiers are scoped to the authenticated user, and the security settings page presents the active devices without exposing refresh-token values.
 
+### Passkeys
+
+The initial passkey implementation supports discoverable passkey sign-in and authenticated passkey registration, listing, and removal:
+
+| Endpoint | Purpose |
+| --- | --- |
+| `POST /api/auth/passkeys/register/options` | Create a session-bound registration challenge |
+| `POST /api/auth/passkeys/register/verify` | Verify a WebAuthn registration and persist its public credential |
+| `POST /api/auth/passkeys/authenticate/options` | Create a short-lived sign-in challenge |
+| `POST /api/auth/passkeys/authenticate/verify` | Verify a passkey assertion and create a BHID session |
+| `GET /api/auth/passkeys` | List the authenticated user's registered passkeys |
+| `DELETE /api/auth/passkeys/{id}` | Remove one of the authenticated user's passkeys |
+
+Challenges are single-use and expire after five minutes. User verification is required, registration uses `attestation: none`, and BHID stores the credential public key and signature counter rather than biometric data. The registration and sign-in interface is available on the Security Settings and Login pages.
+
+Apply the WebAuthn schema migration before using these routes:
+
+```powershell
+psql "$env:DATABASE_URL" -v ON_ERROR_STOP=1 -f .\database\migrations\002_webauthn_passkeys.sql
+```
+
+`WEBAUTHN_RP_ID` and `WEBAUTHN_RP_NAME` may be set to override the defaults derived from the configured issuer. `WEBAUTHN_ORIGINS` may contain a comma-separated list of exact origins for the BHID UI; every origin must be covered by the relying-party ID. Production origins and issuer must use HTTPS. Apply the migration only after reviewing the target database and taking a backup. Browser/device coverage and end-to-end verification against a migrated test database are still required before production use.
+
 ### Initial OAuth 2.0 / OpenID Connect provider
 
 The repository now includes an initial Authorization Code flow with PKCE and OpenID Connect endpoints:
@@ -76,6 +99,8 @@ The repository now includes an initial Authorization Code flow with PKCE and Ope
 | `GET /api/oauth/userinfo` | Return only claims permitted by the validated access token's scopes |
 
 The provider accepts only the `authorization_code` grant and `S256` PKCE. Authorization requests require `response_type=code`, `state`, and `nonce`, and must include `openid`. Supported optional scopes are `email`, `profile`, and `bhid`; each optional scope must also be enabled for the registered application. Public applications use PKCE without a client secret. Confidential applications authenticate to the token endpoint with HTTP Basic and a high-entropy client secret whose SHA-256 hex digest is stored in `applications.client_secret_hash`.
+
+Public browser clients may exchange codes from an origin represented by one of their registered HTTPS redirect URIs (loopback HTTP is permitted for development). The token endpoint returns an exact-origin CORS header only for that registered public-client origin; it does not enable credentialed CORS or wildcard origins.
 
 The existing `applications` table is the trusted client registry. Provision clients through a controlled database/admin workflow; do not expose an unauthenticated public client-registration endpoint. Redirect URIs are compared exactly to the registered list. Production web redirects must use HTTPS; HTTP is accepted only for loopback development clients. A migration adds short-lived, one-use authorization requests and codes plus remembered user consent:
 
@@ -111,17 +136,17 @@ Features are considered complete only after implementation and testing.
 
 Planned milestones include:
 
-- [ ] Local environment and database validation
-- [ ] Registration and password hashing
-- [ ] Password login and session creation
-- [ ] Refresh-token rotation and logout
-- [ ] Current-user endpoint and session management
-- [ ] Authentication security hardening
-- [ ] Passkey registration and authentication
-- [ ] Cross-application OAuth 2.0 and OpenID Connect (route implementation added; migration and end-to-end verification still required)
+- [x] Local environment and database validation
+- [x] Registration and password hashing
+- [x] Password login and session creation
+- [x] Refresh-token rotation and logout
+- [x] Current-user endpoint and session management
+- [ ] Authentication security hardening (rate limiting, security audit events and full automated flow tests remain)
+- [x] Passkey registration and authentication (database migration and browser/device checks remain)
+- [x] Cross-application OAuth 2.0 and OpenID Connect (migration and end-to-end verification against a separate client remain)
 - [ ] Production deployment and security testing
 
-Update this checklist as each feature is implemented and verified.
+Implementation status is not the same as production readiness. Apply migrations to a reviewed test database and complete the outstanding end-to-end, rate-limit, browser/device, and protocol checks before using BHID with real accounts or external clients.
 
 ## Environment Configuration
 
@@ -134,6 +159,9 @@ Typical local settings include:
 - `JWT_ACCESS_PRIVATE_KEY_PATH`
 - `JWT_ACCESS_PUBLIC_KEY_PATH`
 - `DATABASE_URL`
+- `WEBAUTHN_RP_ID` (optional; defaults to the `JWT_ISSUER` hostname)
+- `WEBAUTHN_RP_NAME` (optional; defaults to `BHID`)
+- `WEBAUTHN_ORIGINS` (optional; defaults to the `JWT_ISSUER` origin)
 
 The PEM paths must point to the corresponding local key files. Production will use separately provisioned signing keys and the production issuer, configured through secure server-side environment variables or an appropriate key-management service.
 

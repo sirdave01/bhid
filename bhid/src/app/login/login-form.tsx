@@ -4,6 +4,7 @@ import {
   startAuthentication,
   type PublicKeyCredentialRequestOptionsJSON,
 } from "@simplewebauthn/browser";
+import Link from "next/link";
 import { useState, type FormEvent } from "react";
 
 type LoginFormProps = {
@@ -147,6 +148,12 @@ export default function LoginForm({ continueTo }: LoginFormProps) {
       >
         Sign in with a passkey
       </button>
+      <p className="text-center text-sm text-zinc-600">
+        New to BHID?{" "}
+        <Link className="font-medium text-zinc-950 underline" href="/register">
+          Create an account
+        </Link>
+      </p>
     </div>
   );
 }

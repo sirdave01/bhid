@@ -218,7 +218,7 @@ export async function GET(request: NextRequest) {
   const stateIsValid = params.state.length <= 512;
   const nonceIsValid = params.nonce.length <= 512;
   const challengeIsValid =
-    /^[A-Za-z0-9_-]{43,128}$/.test(params.code_challenge);
+    /^[A-Za-z0-9_-]{43}$/.test(params.code_challenge);
 
   if (
     !stateIsValid ||

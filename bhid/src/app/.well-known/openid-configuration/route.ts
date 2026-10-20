@@ -1,9 +1,10 @@
-import { NextResponse } from "next/server";
+import { connection, NextResponse } from "next/server";
 
 import { getJwtConfig } from "@/lib/jwt-keys";
 import { oidcEndpoint } from "@/lib/oauth";
 
 export async function GET() {
+  await connection();
   const { issuer } = getJwtConfig();
 
   return NextResponse.json(

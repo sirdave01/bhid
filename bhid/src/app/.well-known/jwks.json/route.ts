@@ -1,9 +1,10 @@
 import { createPublicKey } from "node:crypto";
-import { NextResponse } from "next/server";
+import { connection, NextResponse } from "next/server";
 
 import { getJwtConfig } from "@/lib/jwt-keys";
 
 export async function GET() {
+  await connection();
   const { keyId, publicKey } = getJwtConfig();
   const publicJwk = createPublicKey(publicKey).export({ format: "jwk" });
 

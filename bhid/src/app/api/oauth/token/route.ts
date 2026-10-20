@@ -12,16 +12,24 @@ import {
   signOidcIdToken,
 } from "@/lib/oauth";
 
-function tokenError(error: string, status = 400) {
+function tokenError(
+  error: string,
+  status = 400,
+  corsOrigin?: string | null
+) {
+  const headers = new Headers({
+    "Cache-Control": "no-store",
+    Pragma: "no-cache",
+  });
+
+  if (corsOrigin) {
+    headers.set("Access-Control-Allow-Origin", corsOrigin);
+    headers.set("Vary", "Origin");
+  }
+
   return NextResponse.json(
     { error },
-    {
-      status,
-      headers: {
-        "Cache-Control": "no-store",
-        Pragma: "no-cache",
-      },
-    }
+    { status, headers }
   );
 }
 
@@ -79,11 +87,76 @@ function verifyPkce(verifier: string, challenge: string) {
   );
 }
 
+function registeredPublicClientOrigin(
+  origin: string | null,
+  redirects: string[] | null
+): string | null {
+  if (!origin || !redirects) {
+    return null;
+  }
+
+  let requestedOrigin: URL;
+
+  try {
+    requestedOrigin = new URL(origin);
+  } catch {
+    return null;
+  }
+
+  const isLoopback =
+    requestedOrigin.hostname === "localhost" ||
+    requestedOrigin.hostname === "127.0.0.1" ||
+    requestedOrigin.hostname === "[::1]";
+
+  if (
+    requestedOrigin.origin !== origin ||
+    requestedOrigin.username ||
+    requestedOrigin.password ||
+    (requestedOrigin.protocol !== "https:" &&
+      !(requestedOrigin.protocol === "http:" && isLoopback))
+  ) {
+    return null;
+  }
+
+  const redirectOrigins = new Set<string>();
+
+  for (const redirect of redirects) {
+    try {
+      const redirectUrl = new URL(redirect);
+
+      if (
+        redirectUrl.protocol === "https:" ||
+        (redirectUrl.protocol === "http:" &&
+          (redirectUrl.hostname === "localhost" ||
+            redirectUrl.hostname === "127.0.0.1" ||
+            redirectUrl.hostname === "[::1]"))
+      ) {
+        redirectOrigins.add(redirectUrl.origin);
+      }
+    } catch {
+      continue;
+    }
+  }
+
+  return redirectOrigins.has(origin) ? origin : null;
+}
+
 function buildTokenResponse(
   accessToken: string,
   idToken: string,
-  scopes: string[]
+  scopes: string[],
+  corsOrigin: string | null
 ) {
+  const headers = new Headers({
+    "Cache-Control": "no-store",
+    Pragma: "no-cache",
+  });
+
+  if (corsOrigin) {
+    headers.set("Access-Control-Allow-Origin", corsOrigin);
+    headers.set("Vary", "Origin");
+  }
+
   return NextResponse.json(
     {
       access_token: accessToken,
@@ -92,12 +165,7 @@ function buildTokenResponse(
       scope: scopes.join(" "),
       id_token: idToken,
     },
-    {
-      headers: {
-        "Cache-Control": "no-store",
-        Pragma: "no-cache",
-      },
-    }
+    { headers }
   );
 }
 
@@ -161,6 +229,21 @@ export async function POST(request: NextRequest) {
     return tokenError("invalid_client", 401);
   }
 
+  const requestOrigin = request.headers.get("origin");
+  const corsOrigin = requestOrigin
+    ? registeredPublicClientOrigin(
+        requestOrigin,
+        application.redirect_uris
+      )
+    : null;
+
+  if (
+    requestOrigin &&
+    (application.client_type !== "PUBLIC" || !corsOrigin)
+  ) {
+    return tokenError("invalid_request");
+  }
+
   if (application.client_type === "CONFIDENTIAL") {
     if (
       !basicCredentials ||
@@ -169,16 +252,15 @@ export async function POST(request: NextRequest) {
         application.client_secret_hash
       )
     ) {
+      const headers = new Headers({
+        "Cache-Control": "no-store",
+        Pragma: "no-cache",
+        "WWW-Authenticate": 'Basic realm="BHID OAuth"',
+      });
+
       return NextResponse.json(
         { error: "invalid_client" },
-        {
-          status: 401,
-          headers: {
-            "Cache-Control": "no-store",
-            Pragma: "no-cache",
-            "WWW-Authenticate": 'Basic realm="BHID OAuth"',
-          },
-        }
+        { status: 401, headers }
       );
     }
   } else if (basicCredentials || application.client_secret_hash) {
@@ -226,7 +308,7 @@ export async function POST(request: NextRequest) {
     ) {
       await client.query("ROLLBACK");
       transactionOpen = false;
-      return tokenError("invalid_grant");
+      return tokenError("invalid_grant", 400, corsOrigin);
     }
 
     const sessionResult = await client.query(
@@ -264,7 +346,7 @@ export async function POST(request: NextRequest) {
     if (!user) {
       await client.query("ROLLBACK");
       transactionOpen = false;
-      return tokenError("invalid_grant");
+      return tokenError("invalid_grant", 400, corsOrigin);
     }
 
     await client.query(
@@ -301,7 +383,7 @@ export async function POST(request: NextRequest) {
     await client.query("COMMIT");
     transactionOpen = false;
 
-    return buildTokenResponse(accessToken, idToken, scopes);
+    return buildTokenResponse(accessToken, idToken, scopes, corsOrigin);
   } catch (error) {
     if (client && transactionOpen) {
       try {
@@ -315,7 +397,7 @@ export async function POST(request: NextRequest) {
     }
 
     console.error("OAuth authorization-code exchange failed:", error);
-    return tokenError("server_error", 500);
+    return tokenError("server_error", 500, corsOrigin);
   } finally {
     client?.release();
   }

@@ -101,6 +101,13 @@ export async function POST(request: NextRequest) {
       return invalidRequest();
     }
 
+    await client.query(
+      `UPDATE webauthn_challenges
+       SET consumed_at = NOW()
+       WHERE id = $1`,
+      [body.challengeId]
+    );
+
     let verification: VerifiedRegistrationResponse;
 
     try {
@@ -112,13 +119,13 @@ export async function POST(request: NextRequest) {
         requireUserVerification: true,
       });
     } catch {
-      await client.query("ROLLBACK");
+      await client.query("COMMIT");
       transactionOpen = false;
       return invalidRequest();
     }
 
     if (!verification.verified || !verification.registrationInfo.userVerified) {
-      await client.query("ROLLBACK");
+      await client.query("COMMIT");
       transactionOpen = false;
       return invalidRequest();
     }
@@ -137,6 +144,7 @@ export async function POST(request: NextRequest) {
          label
        )
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       ON CONFLICT (credential_id) DO NOTHING
        RETURNING id`,
       [
         session.userId,
@@ -150,12 +158,15 @@ export async function POST(request: NextRequest) {
       ]
     );
 
-    await client.query(
-      `UPDATE webauthn_challenges
-       SET consumed_at = NOW()
-       WHERE id = $1`,
-      [body.challengeId]
-    );
+    if (!savedCredential.rows[0]) {
+      await client.query("COMMIT");
+      transactionOpen = false;
+      return NextResponse.json(
+        { success: false, message: "This passkey is already registered" },
+        { status: 409 }
+      );
+    }
+
     await client.query("COMMIT");
     transactionOpen = false;
 
@@ -174,18 +185,6 @@ export async function POST(request: NextRequest) {
       } catch (rollbackError) {
         console.error("Passkey registration rollback failed:", rollbackError);
       }
-    }
-
-    if (
-      typeof error === "object" &&
-      error !== null &&
-      "code" in error &&
-      error.code === "23505"
-    ) {
-      return NextResponse.json(
-        { success: false, message: "This passkey is already registered" },
-        { status: 409 }
-      );
     }
 
     console.error("Passkey registration verification failed:", error);

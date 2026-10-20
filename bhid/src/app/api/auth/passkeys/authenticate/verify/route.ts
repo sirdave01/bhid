@@ -108,6 +108,13 @@ export async function POST(request: NextRequest) {
       return invalidRequest();
     }
 
+    await client.query(
+      `UPDATE webauthn_challenges
+       SET consumed_at = NOW()
+       WHERE id = $1`,
+      [body.challengeId]
+    );
+
     const userResult = await client.query<{
       id: string;
       bhid: string;
@@ -142,7 +149,7 @@ export async function POST(request: NextRequest) {
     const credentialRow = userResult.rows[0];
 
     if (!credentialRow) {
-      await client.query("ROLLBACK");
+      await client.query("COMMIT");
       transactionOpen = false;
       return invalidRequest();
     }
@@ -170,7 +177,7 @@ export async function POST(request: NextRequest) {
         requireUserVerification: true,
       });
     } catch {
-      await client.query("ROLLBACK");
+      await client.query("COMMIT");
       transactionOpen = false;
       return invalidRequest();
     }
@@ -179,7 +186,7 @@ export async function POST(request: NextRequest) {
       !verification.verified ||
       !verification.authenticationInfo.userVerified
     ) {
-      await client.query("ROLLBACK");
+      await client.query("COMMIT");
       transactionOpen = false;
       return invalidRequest();
     }
@@ -198,13 +205,6 @@ export async function POST(request: NextRequest) {
         verification.authenticationInfo.credentialBackedUp,
       ]
     );
-    await client.query(
-      `UPDATE webauthn_challenges
-       SET consumed_at = NOW()
-       WHERE id = $1`,
-      [body.challengeId]
-    );
-
     const sessionResult = await client.query<{ id: string }>(
       `INSERT INTO sessions (
          user_id,
