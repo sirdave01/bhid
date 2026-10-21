@@ -156,18 +156,25 @@ Typical local settings include:
 
 - `JWT_ISSUER`
 - `JWT_ACCESS_KEY_ID`
+- `JWT_ACCESS_AUDIENCE`
 - `JWT_ACCESS_PRIVATE_KEY_PATH`
 - `JWT_ACCESS_PUBLIC_KEY_PATH`
 - `DATABASE_URL`
 - `WEBAUTHN_RP_ID` (optional; defaults to the `JWT_ISSUER` hostname)
 - `WEBAUTHN_RP_NAME` (optional; defaults to `BHID`)
 - `WEBAUTHN_ORIGINS` (optional; defaults to the `JWT_ISSUER` origin)
-- `RESEND_API_KEY` and `RESEND_FROM_EMAIL` for email verification delivery
+- `RESEND_API_KEY` and `RESEND_FROM_EMAIL` for email verification and password recovery delivery
 - `MFA_TOTP_ENCRYPTION_KEY` for encrypting authenticator secrets (base64-encoded 32-byte key)
 
 For local development, the PEM path variables must point to the corresponding key files. In production, configure `JWT_ACCESS_PRIVATE_KEY` and `JWT_ACCESS_PUBLIC_KEY` with the PEM contents as server-side environment variables instead. Literal `\n` sequences in those values are normalized to line breaks. Production does not fall back to local key-file paths. Keep signing keys out of client-side variables and source control.
 
-Apply `database/migrations/003_account_security.sql` before using profile, email verification, wallet-linking, or TOTP settings. Configure Resend's API key and verified sender address, and generate a separate random 32-byte TOTP encryption key for `MFA_TOTP_ENCRYPTION_KEY`; retain a secure backup because enrolled authenticator secrets cannot be decrypted without it.
+Set `JWT_ISSUER` to the exact public issuer URL (for example, `https://auth.bytehaven.world` in production and `http://localhost:3000` locally). Set `JWT_ACCESS_AUDIENCE` to the audience expected by this application. `JWT_ACCESS_KEY_ID` must identify the matching signing key pair. BHID validates that the configured private and public keys match at runtime and reports a server-side configuration error if they do not.
+
+For Vercel, add these variables to the **Production** environment (and Preview/Development if those environments are used): `DATABASE_URL`, `JWT_ISSUER`, `JWT_ACCESS_AUDIENCE`, `JWT_ACCESS_KEY_ID`, `JWT_ACCESS_PRIVATE_KEY`, `JWT_ACCESS_PUBLIC_KEY`, `MFA_TOTP_ENCRYPTION_KEY`, `RESEND_API_KEY`, and `RESEND_FROM_EMAIL`. Keep the two JWT keys server-only; do not prefix them with `NEXT_PUBLIC_`. Paste PEM values with real line breaks or escaped `\n` sequences. Redeploy after changing environment variables. Local `.env.local` key-path variables do not work as a production substitute.
+
+Configure Resend with an API key and a verified sender address. Generate `MFA_TOTP_ENCRYPTION_KEY` from 32 random bytes encoded as Base64 (for example, `node -e "console.log(require('node:crypto').randomBytes(32).toString('base64'))"`). Keep a secure backup of this key: enrolled authenticator secrets cannot be decrypted without it, and replacing it without re-encrypting stored secrets will break MFA-based password recovery.
+
+Apply `database/migrations/003_account_security.sql` before using profile, email verification, wallet-linking, or TOTP settings. Apply `database/migrations/004_password_recovery_and_signup_mfa.sql` before deploying mandatory TOTP enrollment during registration and password recovery. Review the target database and take a backup before applying migrations; the app does not run migrations automatically. Existing accounts must enroll an authenticator in Security Settings before they can use password recovery. Account MFA is not required during sign-in.
 
 Never publish real secrets in this README or in example environment files.
 

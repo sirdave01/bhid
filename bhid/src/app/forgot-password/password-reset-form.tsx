@@ -42,12 +42,12 @@ export default function PasswordResetForm() {
   useEffect(() => {
     const token = window.location.hash.slice(1);
     if (token) {
-      setChallengeToken(token);
       window.history.replaceState(
         null,
         "",
         `${window.location.pathname}${window.location.search}`
       );
+      queueMicrotask(() => setChallengeToken(token));
     }
   }, []);
 

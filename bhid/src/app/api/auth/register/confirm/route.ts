@@ -26,6 +26,14 @@ type SignupChallenge = {
   attempts: number;
 };
 
+type CreatedAccount = {
+  id: string;
+  bhid: string;
+  email: string;
+  auth_version: number;
+  email_verified_at: Date | null;
+};
+
 function invalidChallenge() {
   return NextResponse.json(
     {
@@ -69,13 +77,7 @@ export async function POST(request: NextRequest) {
   let client: PoolClient | undefined;
   let transactionOpen = false;
   let accessToken: string | undefined;
-  let account: {
-    id: string;
-    bhid: string;
-    email: string;
-    auth_version: number;
-    email_verified_at: Date | null;
-  } | undefined;
+  let account: CreatedAccount | undefined;
 
   try {
     client = await pool.connect();
@@ -128,24 +130,25 @@ export async function POST(request: NextRequest) {
       "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",
       [challenge.email]
     );
-    const userResult = await client.query(
+    const userResult = await client.query<CreatedAccount>(
       `INSERT INTO users (bhid, email, password_hash, status, verification_level)
        VALUES ($1, $2, $3, 'ACTIVE', 0)
        RETURNING id, bhid, email, auth_version, email_verified_at`,
       [generateBhid(), challenge.email, challenge.password_hash]
     );
-    account = userResult.rows[0];
+    const createdAccount = userResult.rows[0];
+    account = createdAccount;
     const displayName = `${challenge.first_name} ${challenge.last_name}`;
 
     await client.query(
       `INSERT INTO profiles (user_id, username, display_name)
        VALUES ($1, $2, $3)`,
-      [account.id, challenge.username, displayName]
+      [createdAccount.id, challenge.username, displayName]
     );
     await client.query(
       `INSERT INTO totp_methods (user_id, secret_encrypted, last_used_step)
        VALUES ($1, $2, $3)`,
-      [account.id, challenge.secret_encrypted, matchedStep.toString()]
+      [createdAccount.id, challenge.secret_encrypted, matchedStep.toString()]
     );
     const sessionResult = await client.query<{ id: string }>(
       `INSERT INTO sessions (
@@ -158,7 +161,7 @@ export async function POST(request: NextRequest) {
        VALUES ($1, $2, $3, $4, $5)
        RETURNING id`,
       [
-        account.id,
+        createdAccount.id,
         refreshTokenHash,
         request.headers.get("user-agent")?.slice(0, 512) ?? null,
         refreshExpiresAt,
@@ -168,9 +171,9 @@ export async function POST(request: NextRequest) {
 
     accessToken = signAccessToken(
       {
-        userId: account.id,
+        userId: createdAccount.id,
         sessionId: sessionResult.rows[0].id,
-        authVersion: account.auth_version,
+        authVersion: createdAccount.auth_version,
       },
       getJwtConfig().audience
     );
