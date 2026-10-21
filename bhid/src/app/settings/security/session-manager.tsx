@@ -191,7 +191,7 @@ export default function SessionManager() {
   return (
     <section
       aria-labelledby="active-sessions-heading"
-      className="mt-10 rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm"
+      className="mt-10 rounded-2xl border border-zinc-700 bg-zinc-900 p-6 text-white shadow-sm"
     >
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
@@ -201,7 +201,7 @@ export default function SessionManager() {
           >
             Active sessions
           </h2>
-          <p className="mt-1 text-sm text-zinc-600">
+          <p className="mt-1 text-sm text-zinc-300">
             Signed-in devices are listed here. Revoking a session signs that
             device out.
           </p>
@@ -231,15 +231,15 @@ export default function SessionManager() {
       )}
 
       {loading ? (
-        <p className="mt-6 text-sm text-zinc-600" role="status">
+        <p className="mt-6 text-sm text-zinc-300" role="status">
           Loading sessions…
         </p>
       ) : sessions.length === 0 ? (
-        <p className="mt-6 rounded-lg bg-zinc-50 p-4 text-sm text-zinc-600">
+        <p className="mt-6 rounded-lg bg-zinc-950 p-4 text-sm text-zinc-300">
           No active sessions were found.
         </p>
       ) : (
-        <ul className="mt-6 divide-y divide-zinc-200">
+        <ul className="mt-6 divide-y divide-zinc-700">
           {sessions.map((session) => (
             <li
               key={session.id}
@@ -247,7 +247,7 @@ export default function SessionManager() {
             >
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
-                  <p className="font-medium text-zinc-900">
+                  <p className="font-medium text-white">
                     {session.userAgent || "Unknown device"}
                   </p>
                   {session.isCurrent && (
@@ -256,7 +256,7 @@ export default function SessionManager() {
                     </span>
                   )}
                 </div>
-                <dl className="mt-2 grid gap-1 text-sm text-zinc-600">
+                <dl className="mt-2 grid gap-1 text-sm text-zinc-300">
                   <div>
                     <dt className="inline font-medium">Started: </dt>
                     <dd className="inline">{formatDate(session.createdAt)}</dd>
@@ -276,7 +276,7 @@ export default function SessionManager() {
                 </dl>
               </div>
               <button
-                className="shrink-0 rounded-lg border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-800 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
+                className="shrink-0 rounded-lg border border-zinc-600 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
                 disabled={revokingId !== null}
                 onClick={() => void revokeSession(session)}
                 type="button"
@@ -294,7 +294,7 @@ export default function SessionManager() {
 
       {nextCursor && (
         <button
-          className="mt-6 rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-800 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
+          className="mt-6 rounded-lg border border-zinc-600 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
           disabled={loadingMore}
           onClick={() => {
             setLoadingMore(true);

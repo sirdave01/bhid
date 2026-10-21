@@ -14,6 +14,8 @@ type LoginFormProps = {
 export default function LoginForm({ continueTo }: LoginFormProps) {
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [mfaChallengeToken, setMfaChallengeToken] = useState("");
+  const [mfaCode, setMfaCode] = useState("");
 
   async function handlePasskeySignIn() {
     setError("");
@@ -69,6 +71,32 @@ export default function LoginForm({ continueTo }: LoginFormProps) {
     const form = new FormData(event.currentTarget);
 
     try {
+      if (mfaChallengeToken) {
+        const response = await fetch("/api/auth/mfa/totp/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            challengeToken: mfaChallengeToken,
+            code: mfaCode,
+          }),
+        });
+        const payload: unknown = await response.json();
+
+        if (!response.ok) {
+          const message =
+            typeof payload === "object" &&
+            payload !== null &&
+            "message" in payload &&
+            typeof payload.message === "string"
+              ? payload.message
+              : "Unable to verify the authenticator code.";
+          throw new Error(message);
+        }
+
+        window.location.replace(continueTo);
+        return;
+      }
+
       const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: {
@@ -79,6 +107,24 @@ export default function LoginForm({ continueTo }: LoginFormProps) {
           password: form.get("password"),
         }),
       });
+
+      const payload: unknown = await response.json();
+
+      if (
+        response.ok &&
+        typeof payload === "object" &&
+        payload !== null &&
+        "mfaRequired" in payload &&
+        payload.mfaRequired === true &&
+        "data" in payload &&
+        typeof payload.data === "object" &&
+        payload.data !== null &&
+        "challengeToken" in payload.data &&
+        typeof payload.data.challengeToken === "string"
+      ) {
+        setMfaChallengeToken(payload.data.challengeToken);
+        return;
+      }
 
       if (!response.ok) {
         setError("Unable to sign in with those details.");
@@ -96,32 +142,71 @@ export default function LoginForm({ continueTo }: LoginFormProps) {
   return (
     <div className="mt-8 space-y-5">
       <form className="space-y-5" onSubmit={handleSubmit}>
-      <div>
-        <label className="block text-sm font-medium" htmlFor="email">
-          Email
-        </label>
-        <input
-          autoComplete="username"
-          className="mt-1 w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-white placeholder:text-zinc-400"
-          id="email"
-          name="email"
-          required
-          type="email"
-        />
-      </div>
-      <div>
-        <label className="block text-sm font-medium" htmlFor="password">
-          Password
-        </label>
-        <input
-          autoComplete="current-password"
-          className="mt-1 w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-white placeholder:text-zinc-400"
-          id="password"
-          name="password"
-          required
-          type="password"
-        />
-      </div>
+      {mfaChallengeToken ? (
+        <div>
+          <p className="text-sm text-white">
+            Enter the six-digit code from your authenticator app.
+          </p>
+          <label
+            className="mt-4 block text-sm font-medium text-white"
+            htmlFor="mfa-code"
+          >
+            Authenticator code
+          </label>
+          <input
+            autoComplete="one-time-code"
+            className="mt-1 w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-white"
+            id="mfa-code"
+            inputMode="numeric"
+            maxLength={6}
+            onChange={(event) =>
+              setMfaCode(event.target.value.replace(/\D/g, "").slice(0, 6))
+            }
+            pattern="\d{6}"
+            required
+            value={mfaCode}
+          />
+          <button
+            className="mt-3 text-sm text-white underline"
+            onClick={() => {
+              setMfaChallengeToken("");
+              setMfaCode("");
+            }}
+            type="button"
+          >
+            Use a different sign-in method
+          </button>
+        </div>
+      ) : (
+        <>
+          <div>
+            <label className="block text-sm font-medium text-white" htmlFor="email">
+              Email
+            </label>
+            <input
+              autoComplete="username"
+              className="mt-1 w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-white placeholder:text-zinc-400"
+              id="email"
+              name="email"
+              required
+              type="email"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-white" htmlFor="password">
+              Password
+            </label>
+            <input
+              autoComplete="current-password"
+              className="mt-1 w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-white placeholder:text-zinc-400"
+              id="password"
+              name="password"
+              required
+              type="password"
+            />
+          </div>
+        </>
+      )}
       {error ? (
         <p aria-live="polite" className="text-sm text-red-700" role="alert">
           {error}
@@ -129,10 +214,16 @@ export default function LoginForm({ continueTo }: LoginFormProps) {
       ) : null}
         <button
           className="rounded-md bg-black px-4 py-2 font-medium text-white disabled:opacity-60"
-          disabled={isSubmitting}
+          disabled={isSubmitting || (Boolean(mfaChallengeToken) && mfaCode.length !== 6)}
           type="submit"
         >
-          {isSubmitting ? "Signing in..." : "Sign in"}
+          {isSubmitting
+            ? mfaChallengeToken
+              ? "Verifying…"
+              : "Signing in..."
+            : mfaChallengeToken
+              ? "Verify and sign in"
+              : "Sign in"}
         </button>
       </form>
       <div className="flex items-center gap-3" aria-hidden="true">
