@@ -31,6 +31,11 @@ export const registerSchema = z.object({
     .min(12, "Password must be at least 12 characters long")
     .max(128, "Password must be less than 128 characters or fewer"),
 
+  confirmPassword: z
+    .string()
+    .min(12, "Password must be at least 12 characters long")
+    .max(128, "Password must be less than 128 characters or fewer"),
+
   username: z.preprocess(
     (value) => {
       if (typeof value === "string") {
@@ -50,6 +55,9 @@ export const registerSchema = z.object({
       )
       .optional()
   ),
+}).refine((value) => value.password === value.confirmPassword, {
+  message: "Passwords do not match",
+  path: ["confirmPassword"],
 });
 
 export type RegisterInput = z.infer<typeof registerSchema>;
@@ -118,7 +126,11 @@ export const accountProfileSchema = z.object({
       .nullable()
   ),
   dateOfBirth: z
-    .string()
+    .preprocess(
+      (value) =>
+        typeof value === "string" && value.trim() === "" ? null : value,
+      z
+        .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/)
     .refine((value) => {
       const date = new Date(`${value}T00:00:00.000Z`);
@@ -128,5 +140,31 @@ export const accountProfileSchema = z.object({
         date.getTime() <= Date.now()
       );
     })
-    .nullable(),
+        .nullable()
+    ),
 });
+
+export const passwordResetRequestSchema = z.object({
+  email: z
+    .string()
+    .trim()
+    .email("Invalid email address")
+    .max(254, "Email is too long")
+    .transform((value) => value.toLowerCase()),
+});
+
+export const passwordResetSchema = z
+  .object({
+    challengeToken: z.string().regex(/^[A-Za-z0-9_-]{40,64}$/),
+    emailCode: z.string().regex(/^\d{6}$/),
+    totpCode: z.string().regex(/^\d{6}$/),
+    password: z
+      .string()
+      .min(12, "Password must be at least 12 characters long")
+      .max(128, "Password must be less than 128 characters or fewer"),
+    confirmPassword: z.string().min(12).max(128),
+  })
+  .refine((value) => value.password === value.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  });

@@ -3,11 +3,12 @@
 
 import "server-only";
 
+import { createHash, createPrivateKey, createPublicKey } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 function normalizePem(pem: string): string {
-  return pem.replace(/\\n/g, "\n");
+  return pem.replace(/\\n/g, "\n").replace(/^\uFEFF/, "").trim();
 }
 
 function readPemFile(environmentVariable: string): string {
@@ -26,7 +27,7 @@ function readPemFile(environmentVariable: string): string {
 }
 
 function readPemKey(keyVariable: string, pathVariable: string): string {
-  const configuredKey = process.env[keyVariable];
+  const configuredKey = process.env[keyVariable]?.trim();
 
   if (configuredKey) {
     return normalizePem(configuredKey);
@@ -54,9 +55,9 @@ export function getJwtConfig(): JwtConfig {
     return cachedJwtConfig;
   }
 
-  const issuer = process.env.JWT_ISSUER;
-  const keyId = process.env.JWT_ACCESS_KEY_ID;
-  const audience = process.env.JWT_ACCESS_AUDIENCE;
+  const issuer = process.env.JWT_ISSUER?.trim();
+  const keyId = process.env.JWT_ACCESS_KEY_ID?.trim();
+  const audience = process.env.JWT_ACCESS_AUDIENCE?.trim();
 
   if (!issuer || !keyId || !audience) {
     throw new Error(
@@ -64,7 +65,14 @@ export function getJwtConfig(): JwtConfig {
     );
   }
 
-  const issuerUrl = new URL(issuer);
+  let issuerUrl: URL;
+
+  try {
+    issuerUrl = new URL(issuer);
+  } catch {
+    throw new Error("JWT_ISSUER must be an absolute URL");
+  }
+
   const localIssuerHosts = new Set(["localhost", "127.0.0.1", "[::1]"]);
 
   if (
@@ -78,18 +86,53 @@ export function getJwtConfig(): JwtConfig {
     throw new Error("JWT_ISSUER must be HTTPS except for local development");
   }
 
+  const privateKey = readPemKey(
+    "JWT_ACCESS_PRIVATE_KEY",
+    "JWT_ACCESS_PRIVATE_KEY_PATH"
+  );
+  const publicKey = readPemKey(
+    "JWT_ACCESS_PUBLIC_KEY",
+    "JWT_ACCESS_PUBLIC_KEY_PATH"
+  );
+
+  let privateKeyFingerprint: string;
+  let publicKeyFingerprint: string;
+
+  try {
+    privateKeyFingerprint = createHash("sha256")
+      .update(
+        createPublicKey(createPrivateKey(privateKey)).export({
+          type: "spki",
+          format: "der",
+        })
+      )
+      .digest("hex");
+    publicKeyFingerprint = createHash("sha256")
+      .update(
+        createPublicKey(publicKey).export({
+          type: "spki",
+          format: "der",
+        })
+      )
+      .digest("hex");
+  } catch {
+    throw new Error(
+      "JWT_ACCESS_PRIVATE_KEY and JWT_ACCESS_PUBLIC_KEY must be valid PEM keys"
+    );
+  }
+
+  if (privateKeyFingerprint !== publicKeyFingerprint) {
+    throw new Error(
+      "JWT_ACCESS_PRIVATE_KEY and JWT_ACCESS_PUBLIC_KEY do not match"
+    );
+  }
+
   cachedJwtConfig = {
     issuer,
     audience,
     keyId,
-    privateKey: readPemKey(
-      "JWT_ACCESS_PRIVATE_KEY",
-      "JWT_ACCESS_PRIVATE_KEY_PATH"
-    ),
-    publicKey: readPemKey(
-      "JWT_ACCESS_PUBLIC_KEY",
-      "JWT_ACCESS_PUBLIC_KEY_PATH"
-    ),
+    privateKey,
+    publicKey,
   };
 
   return cachedJwtConfig;

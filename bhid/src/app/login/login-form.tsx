@@ -14,8 +14,7 @@ type LoginFormProps = {
 export default function LoginForm({ continueTo }: LoginFormProps) {
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [mfaChallengeToken, setMfaChallengeToken] = useState("");
-  const [mfaCode, setMfaCode] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   async function handlePasskeySignIn() {
     setError("");
@@ -71,32 +70,6 @@ export default function LoginForm({ continueTo }: LoginFormProps) {
     const form = new FormData(event.currentTarget);
 
     try {
-      if (mfaChallengeToken) {
-        const response = await fetch("/api/auth/mfa/totp/login", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            challengeToken: mfaChallengeToken,
-            code: mfaCode,
-          }),
-        });
-        const payload: unknown = await response.json();
-
-        if (!response.ok) {
-          const message =
-            typeof payload === "object" &&
-            payload !== null &&
-            "message" in payload &&
-            typeof payload.message === "string"
-              ? payload.message
-              : "Unable to verify the authenticator code.";
-          throw new Error(message);
-        }
-
-        window.location.replace(continueTo);
-        return;
-      }
-
       const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: {
@@ -110,24 +83,15 @@ export default function LoginForm({ continueTo }: LoginFormProps) {
 
       const payload: unknown = await response.json();
 
-      if (
-        response.ok &&
-        typeof payload === "object" &&
-        payload !== null &&
-        "mfaRequired" in payload &&
-        payload.mfaRequired === true &&
-        "data" in payload &&
-        typeof payload.data === "object" &&
-        payload.data !== null &&
-        "challengeToken" in payload.data &&
-        typeof payload.data.challengeToken === "string"
-      ) {
-        setMfaChallengeToken(payload.data.challengeToken);
-        return;
-      }
-
       if (!response.ok) {
-        setError("Unable to sign in with those details.");
+        const message =
+          typeof payload === "object" &&
+          payload !== null &&
+          "message" in payload &&
+          typeof payload.message === "string"
+            ? payload.message
+            : "Unable to sign in with those details.";
+        setError(message);
         return;
       }
 
@@ -142,71 +106,48 @@ export default function LoginForm({ continueTo }: LoginFormProps) {
   return (
     <div className="mt-8 space-y-5">
       <form className="space-y-5" onSubmit={handleSubmit}>
-      {mfaChallengeToken ? (
         <div>
-          <p className="text-sm text-white">
-            Enter the six-digit code from your authenticator app.
-          </p>
-          <label
-            className="mt-4 block text-sm font-medium text-white"
-            htmlFor="mfa-code"
-          >
-            Authenticator code
+          <label className="block text-sm font-medium text-white" htmlFor="email">
+            Email
           </label>
           <input
-            autoComplete="one-time-code"
-            className="mt-1 w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-white"
-            id="mfa-code"
-            inputMode="numeric"
-            maxLength={6}
-            onChange={(event) =>
-              setMfaCode(event.target.value.replace(/\D/g, "").slice(0, 6))
-            }
-            pattern="\d{6}"
+            autoComplete="username"
+            className="mt-1 w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-white placeholder:text-zinc-400"
+            id="email"
+            name="email"
             required
-            value={mfaCode}
+            type="email"
           />
-          <button
-            className="mt-3 text-sm text-white underline"
-            onClick={() => {
-              setMfaChallengeToken("");
-              setMfaCode("");
-            }}
-            type="button"
-          >
-            Use a different sign-in method
-          </button>
         </div>
-      ) : (
-        <>
-          <div>
-            <label className="block text-sm font-medium text-white" htmlFor="email">
-              Email
-            </label>
-            <input
-              autoComplete="username"
-              className="mt-1 w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-white placeholder:text-zinc-400"
-              id="email"
-              name="email"
-              required
-              type="email"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-white" htmlFor="password">
-              Password
-            </label>
+        <div>
+          <label className="block text-sm font-medium text-white" htmlFor="password">
+            Password
+          </label>
+          <div className="relative mt-1">
             <input
               autoComplete="current-password"
-              className="mt-1 w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-white placeholder:text-zinc-400"
+              className="w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 pr-12 text-white placeholder:text-zinc-400"
               id="password"
               name="password"
               required
-              type="password"
+              type={showPassword ? "text" : "password"}
             />
+            <button
+              aria-label={showPassword ? "Hide password" : "Show password"}
+              aria-pressed={showPassword}
+              className="absolute inset-y-0 right-0 px-3 text-zinc-300 hover:text-white"
+              onClick={() => setShowPassword((visible) => !visible)}
+              type="button"
+            >
+              {showPassword ? <EyeOffIcon /> : <EyeIcon />}
+            </button>
           </div>
-        </>
-      )}
+        </div>
+        <div className="text-right">
+          <Link className="text-sm text-white underline" href="/forgot-password">
+            Forgot password?
+          </Link>
+        </div>
       {error ? (
         <p aria-live="polite" className="text-sm text-red-300" role="alert">
           {error}
@@ -214,16 +155,10 @@ export default function LoginForm({ continueTo }: LoginFormProps) {
       ) : null}
         <button
           className="rounded-md bg-white px-4 py-2 font-medium text-zinc-950 disabled:opacity-60"
-          disabled={isSubmitting || (Boolean(mfaChallengeToken) && mfaCode.length !== 6)}
+          disabled={isSubmitting}
           type="submit"
         >
-          {isSubmitting
-            ? mfaChallengeToken
-              ? "Verifying…"
-              : "Signing in..."
-            : mfaChallengeToken
-              ? "Verify and sign in"
-              : "Sign in"}
+          {isSubmitting ? "Signing in..." : "Sign in"}
         </button>
       </form>
       <div className="flex items-center gap-3" aria-hidden="true">
@@ -246,6 +181,24 @@ export default function LoginForm({ continueTo }: LoginFormProps) {
         </Link>
       </p>
     </div>
+  );
+}
+
+function EyeIcon() {
+  return (
+    <svg aria-hidden="true" fill="none" height="20" viewBox="0 0 24 24" width="20">
+      <path d="M2.5 12s3.4-6 9.5-6 9.5 6 9.5 6-3.4 6-9.5 6-9.5-6-9.5-6Z" stroke="currentColor" strokeWidth="1.7" />
+      <circle cx="12" cy="12" r="2.5" stroke="currentColor" strokeWidth="1.7" />
+    </svg>
+  );
+}
+
+function EyeOffIcon() {
+  return (
+    <svg aria-hidden="true" fill="none" height="20" viewBox="0 0 24 24" width="20">
+      <path d="m3 3 18 18M10.6 6.2A9.8 9.8 0 0 1 12 6c6.1 0 9.5 6 9.5 6a15.8 15.8 0 0 1-3 3.5M6.2 6.9C3.8 8.3 2.5 12 2.5 12s3.4 6 9.5 6c1.1 0 2.1-.2 3-.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.7" />
+      <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" stroke="currentColor" strokeLinecap="round" strokeWidth="1.7" />
+    </svg>
   );
 }
 
