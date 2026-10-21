@@ -23,6 +23,9 @@ CREATE TABLE IF NOT EXISTS public.totp_methods (
     user_id uuid PRIMARY KEY REFERENCES public.users(id) ON DELETE CASCADE,
     secret_encrypted text NOT NULL,
     last_used_step bigint,
+    failed_management_attempts integer NOT NULL DEFAULT 0
+        CHECK (failed_management_attempts >= 0),
+    management_locked_until timestamp with time zone,
     enabled_at timestamp with time zone NOT NULL DEFAULT now(),
     created_at timestamp with time zone NOT NULL DEFAULT now()
 );
