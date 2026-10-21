@@ -7,7 +7,7 @@ const BASE58_ALPHABET =
 const ED25519_SPKI_PREFIX = Buffer.from("302a300506032b6570032100", "hex");
 
 export function decodeBase58(value: string): Buffer {
-  if (!value || value.length > 64) {
+  if (!value || value.length > 100) {
     throw new Error("Invalid Solana address or signature");
   }
 

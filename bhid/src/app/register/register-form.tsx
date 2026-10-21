@@ -160,7 +160,7 @@ export default function RegisterForm() {
         </p>
       )}
       <button
-        className="w-full rounded-lg bg-zinc-950 px-4 py-3 text-sm font-medium text-white hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
+        className="w-full rounded-lg bg-white px-4 py-3 text-sm font-medium text-zinc-950 hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-50"
         disabled={submitting}
         type="submit"
       >

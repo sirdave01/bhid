@@ -139,15 +139,18 @@ export function matchTotpCounter(
   const submitted = Buffer.from(code);
 
   for (const adjustment of [BigInt(-1), BigInt(0), BigInt(1)]) {
+    const counter = currentCounter + adjustment;
+
+    if (counter < BigInt(0)) {
+      continue;
+    }
+
     const expected = Buffer.from(
-      codeForCounter(secret, currentCounter + adjustment)
+      codeForCounter(secret, counter)
     );
 
-    if (
-      currentCounter + adjustment >= BigInt(0) &&
-      timingSafeEqual(expected, submitted)
-    ) {
-      return currentCounter + adjustment;
+    if (timingSafeEqual(expected, submitted)) {
+      return counter;
     }
   }
 

@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 
 export default function SecuritySettingsPage() {
   return (
-    <main className="mx-auto w-full max-w-4xl flex-1 px-6 py-12 text-white">
+    <main className="mx-auto w-full max-w-4xl flex-1 bg-zinc-950 px-6 py-12 text-white">
       <p className="text-sm font-medium uppercase tracking-widest text-zinc-300">
         BHID account
       </p>

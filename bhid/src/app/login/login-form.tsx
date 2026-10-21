@@ -208,12 +208,12 @@ export default function LoginForm({ continueTo }: LoginFormProps) {
         </>
       )}
       {error ? (
-        <p aria-live="polite" className="text-sm text-red-700" role="alert">
+        <p aria-live="polite" className="text-sm text-red-300" role="alert">
           {error}
         </p>
       ) : null}
         <button
-          className="rounded-md bg-black px-4 py-2 font-medium text-white disabled:opacity-60"
+          className="rounded-md bg-white px-4 py-2 font-medium text-zinc-950 disabled:opacity-60"
           disabled={isSubmitting || (Boolean(mfaChallengeToken) && mfaCode.length !== 6)}
           type="submit"
         >

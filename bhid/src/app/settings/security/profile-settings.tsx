@@ -203,7 +203,6 @@ export default function ProfileSettings() {
             autoComplete="bday"
             className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-white"
             id="profile-dob"
-            max={new Date().toISOString().slice(0, 10)}
             onChange={(event) => updateField("dateOfBirth", event.target.value)}
             type="date"
             value={profile.dateOfBirth}

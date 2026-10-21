@@ -19,6 +19,7 @@ export default function WalletSettings() {
   });
   const [address, setAddress] = useState("");
   const [challenge, setChallenge] = useState<WalletChallenge | null>(null);
+  const [editingWallet, setEditingWallet] = useState(false);
   const [signature, setSignature] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -161,6 +162,7 @@ export default function WalletSettings() {
       setChallenge(null);
       setSignature("");
       setAddress("");
+      setEditingWallet(false);
       setWallet(await loadWallet());
     } catch (error) {
       setMessage(
@@ -180,7 +182,7 @@ export default function WalletSettings() {
         A wallet is linked only after its owner signs a one-time BHID message.
         The address is private profile data and is not sent to OAuth clients.
       </p>
-      {wallet.address ? (
+      {wallet.address && !editingWallet ? (
         <div className="mt-5 rounded-lg border border-zinc-700 bg-zinc-950 p-4">
           <p className="text-xs uppercase tracking-wide text-zinc-400">
             Verified wallet
@@ -191,6 +193,13 @@ export default function WalletSettings() {
               Verified {new Date(wallet.verifiedAt).toLocaleString()}
             </p>
           )}
+          <button
+            className="mt-4 rounded-lg border border-zinc-600 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-800"
+            onClick={() => setEditingWallet(true)}
+            type="button"
+          >
+            Change wallet
+          </button>
         </div>
       ) : (
         <>
@@ -207,14 +216,25 @@ export default function WalletSettings() {
             />
           </div>
           {!challenge ? (
-            <button
-              className="mt-4 rounded-lg bg-white px-4 py-2 text-sm font-medium text-zinc-950 disabled:opacity-50"
-              disabled={busy || !address}
-              onClick={() => void createChallenge()}
-              type="button"
-            >
-              Create signed-message challenge
-            </button>
+            <div className="mt-4 flex flex-wrap gap-3">
+              <button
+                className="rounded-lg bg-white px-4 py-2 text-sm font-medium text-zinc-950 disabled:opacity-50"
+                disabled={busy || !address}
+                onClick={() => void createChallenge()}
+                type="button"
+              >
+                Create signed-message challenge
+              </button>
+              {wallet.address && (
+                <button
+                  className="rounded-lg border border-zinc-600 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800"
+                  onClick={() => setEditingWallet(false)}
+                  type="button"
+                >
+                  Cancel
+                </button>
+              )}
+            </div>
           ) : (
             <div className="mt-5 space-y-4">
               <p className="text-sm text-zinc-200">

@@ -133,35 +133,58 @@ export async function POST(request: NextRequest) {
     );
 
     if (mfaResult.rowCount) {
-      const recentChallenges = await pool.query<{ total: string }>(
-        `SELECT COUNT(*)::text AS total
-         FROM totp_login_challenges
-         WHERE user_id = $1
-           AND created_at > NOW() - INTERVAL '15 minutes'`,
-        [user.id]
-      );
-
-      if (Number(recentChallenges.rows[0]?.total ?? "0") >= 5) {
-        return NextResponse.json(
-          {
-            success: false,
-            message: "Too many authenticator attempts. Please try again later.",
-          },
-          { status: 429 }
-        );
-      }
-
       const challengeToken = randomBytes(32).toString("base64url");
+      const challengeClient = await pool.connect();
+      let challengeTransactionOpen = false;
 
-      await pool.query(
-        `INSERT INTO totp_login_challenges (
-           user_id,
-           token_hash,
-           expires_at
-         )
-         VALUES ($1, $2, NOW() + INTERVAL '5 minutes')`,
-        [user.id, hashToken(challengeToken)]
-      );
+      try {
+        await challengeClient.query("BEGIN");
+        challengeTransactionOpen = true;
+        await challengeClient.query(
+          "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",
+          [user.id]
+        );
+
+        const recentChallenges = await challengeClient.query<{ total: string }>(
+          `SELECT COUNT(*)::text AS total
+           FROM totp_login_challenges
+           WHERE user_id = $1
+             AND created_at > NOW() - INTERVAL '15 minutes'`,
+          [user.id]
+        );
+
+        if (Number(recentChallenges.rows[0]?.total ?? "0") >= 5) {
+          await challengeClient.query("ROLLBACK");
+          challengeTransactionOpen = false;
+          return NextResponse.json(
+            {
+              success: false,
+              message: "Too many authenticator attempts. Please try again later.",
+            },
+            { status: 429 }
+          );
+        }
+
+        await challengeClient.query(
+          `INSERT INTO totp_login_challenges (
+             user_id,
+             token_hash,
+             expires_at
+           )
+           VALUES ($1, $2, NOW() + INTERVAL '5 minutes')`,
+          [user.id, hashToken(challengeToken)]
+        );
+        await challengeClient.query("COMMIT");
+        challengeTransactionOpen = false;
+      } catch (error) {
+        if (challengeTransactionOpen) {
+          await challengeClient.query("ROLLBACK");
+        }
+
+        throw error;
+      } finally {
+        challengeClient.release();
+      }
 
       return NextResponse.json({
         success: true,

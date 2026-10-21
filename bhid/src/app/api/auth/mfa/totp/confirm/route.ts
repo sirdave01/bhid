@@ -111,6 +111,14 @@ export async function POST(request: NextRequest) {
       "DELETE FROM totp_setup_challenges WHERE user_id = $1",
       [session.userId]
     );
+    await client.query(
+      `UPDATE sessions
+       SET revoked_at = NOW()
+       WHERE user_id = $1
+         AND id <> $2
+         AND revoked_at IS NULL`,
+      [session.userId, session.sessionId]
+    );
     await client.query("COMMIT");
 
     return NextResponse.json({
