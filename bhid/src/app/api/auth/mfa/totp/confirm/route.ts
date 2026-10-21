@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { getRequestSession } from "@/lib/account-session";
 import pool from "@/lib/db";
-import { decryptTotpSecret, verifyTotpCode } from "@/lib/totp";
+import { decryptTotpSecret, matchTotpCounter } from "@/lib/totp";
 
 export async function POST(request: NextRequest) {
   let session;
@@ -78,7 +78,9 @@ export async function POST(request: NextRequest) {
 
     const secret = decryptTotpSecret(setup.secret_encrypted);
 
-    if (!verifyTotpCode(secret, body.code)) {
+    const matchedStep = matchTotpCounter(secret, body.code);
+
+    if (matchedStep === null) {
       await client.query(
         `UPDATE totp_setup_challenges
          SET attempts = attempts + 1
@@ -93,12 +95,17 @@ export async function POST(request: NextRequest) {
     }
 
     await client.query(
-      `INSERT INTO totp_methods (user_id, secret_encrypted)
-       VALUES ($1, $2)
+      `INSERT INTO totp_methods (
+         user_id,
+         secret_encrypted,
+         last_used_step
+       )
+       VALUES ($1, $2, $3)
        ON CONFLICT (user_id) DO UPDATE
        SET secret_encrypted = EXCLUDED.secret_encrypted,
+           last_used_step = EXCLUDED.last_used_step,
            enabled_at = NOW()`,
-      [session.userId, setup.secret_encrypted]
+      [session.userId, setup.secret_encrypted, matchedStep.toString()]
     );
     await client.query(
       "DELETE FROM totp_setup_challenges WHERE user_id = $1",

@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 
 export default function RegisterPage() {
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-xl flex-col justify-center px-6 py-12">
+    <main className="mx-auto flex min-h-screen w-full max-w-xl flex-col justify-center px-6 py-12 text-white">
       <Link className="text-sm font-semibold tracking-wide" href="/">
         BHID
       </Link>

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
-import PasskeyManager from "./passkey-manager";
 import EmailVerification from "./email-verification";
+import PasskeyManager from "./passkey-manager";
 import ProfileSettings from "./profile-settings";
 import SessionManager from "./session-manager";
 import TotpManager from "./totp-manager";

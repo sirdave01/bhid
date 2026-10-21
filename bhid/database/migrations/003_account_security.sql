@@ -22,6 +22,7 @@ CREATE INDEX IF NOT EXISTS email_verification_tokens_user_created_idx
 CREATE TABLE IF NOT EXISTS public.totp_methods (
     user_id uuid PRIMARY KEY REFERENCES public.users(id) ON DELETE CASCADE,
     secret_encrypted text NOT NULL,
+    last_used_step bigint,
     enabled_at timestamp with time zone NOT NULL DEFAULT now(),
     created_at timestamp with time zone NOT NULL DEFAULT now()
 );

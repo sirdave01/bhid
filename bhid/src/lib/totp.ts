@@ -126,29 +126,40 @@ function codeForCounter(secret: string, counter: bigint): string {
   return String(binary % 1_000_000).padStart(6, "0");
 }
 
-export function verifyTotpCode(
+export function matchTotpCounter(
   secret: string,
   code: string,
   now = Date.now()
-): boolean {
+): bigint | null {
   if (!/^\d{6}$/.test(code)) {
-    return false;
+    return null;
   }
 
   const currentCounter = BigInt(Math.floor(now / 30_000));
   const submitted = Buffer.from(code);
 
-  for (let adjustment = -1n; adjustment <= 1n; adjustment++) {
+  for (const adjustment of [BigInt(-1), BigInt(0), BigInt(1)]) {
     const expected = Buffer.from(
       codeForCounter(secret, currentCounter + adjustment)
     );
 
-    if (timingSafeEqual(expected, submitted)) {
-      return true;
+    if (
+      currentCounter + adjustment >= BigInt(0) &&
+      timingSafeEqual(expected, submitted)
+    ) {
+      return currentCounter + adjustment;
     }
   }
 
-  return false;
+  return null;
+}
+
+export function verifyTotpCode(
+  secret: string,
+  code: string,
+  now = Date.now()
+): boolean {
+  return matchTotpCounter(secret, code, now) !== null;
 }
 
 export function createTotpUri(secret: string, account: string): string {

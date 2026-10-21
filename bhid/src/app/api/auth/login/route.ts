@@ -133,6 +133,24 @@ export async function POST(request: NextRequest) {
     );
 
     if (mfaResult.rowCount) {
+      const recentChallenges = await pool.query<{ total: string }>(
+        `SELECT COUNT(*)::text AS total
+         FROM totp_login_challenges
+         WHERE user_id = $1
+           AND created_at > NOW() - INTERVAL '15 minutes'`,
+        [user.id]
+      );
+
+      if (Number(recentChallenges.rows[0]?.total ?? "0") >= 5) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: "Too many authenticator attempts. Please try again later.",
+          },
+          { status: 429 }
+        );
+      }
+
       const challengeToken = randomBytes(32).toString("base64url");
 
       await pool.query(

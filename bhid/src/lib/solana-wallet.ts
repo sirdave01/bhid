@@ -11,7 +11,7 @@ export function decodeBase58(value: string): Buffer {
     throw new Error("Invalid Solana address or signature");
   }
 
-  let number = 0n;
+  let number = BigInt(0);
 
   for (const character of value) {
     const digit = BASE58_ALPHABET.indexOf(character);
@@ -20,14 +20,14 @@ export function decodeBase58(value: string): Buffer {
       throw new Error("Invalid Solana address or signature");
     }
 
-    number = number * 58n + BigInt(digit);
+    number = number * BigInt(58) + BigInt(digit);
   }
 
   const bytes: number[] = [];
 
-  while (number > 0n) {
-    bytes.unshift(Number(number & 0xffn));
-    number >>= 8n;
+  while (number > BigInt(0)) {
+    bytes.unshift(Number(number & BigInt(0xff)));
+    number >>= BigInt(8);
   }
 
   let leadingZeroes = 0;

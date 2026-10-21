@@ -36,7 +36,7 @@ function safeContinuePath(value: string | string[] | undefined) {
 
 export default function LoginPage({ searchParams }: LoginPageProps) {
   return (
-    <main className="mx-auto flex min-h-screen max-w-xl flex-col justify-center px-6 py-12">
+    <main className="mx-auto flex min-h-screen max-w-xl flex-col justify-center px-6 py-12 text-white">
       <h1 className="text-3xl font-semibold">Sign in to BHID</h1>
       <p className="mt-3 text-white text-sm">
         Use your BHID account to continue securely.

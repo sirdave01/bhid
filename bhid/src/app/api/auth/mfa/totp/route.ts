@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { getRequestSession } from "@/lib/account-session";
 import pool from "@/lib/db";
+import { decryptTotpSecret, matchTotpCounter } from "@/lib/totp";
 
 export async function GET(request: NextRequest) {
   try {
@@ -83,8 +84,11 @@ export async function DELETE(request: NextRequest) {
 
   try {
     await client.query("BEGIN");
-    const result = await client.query<{ secret_encrypted: string }>(
-      `SELECT secret_encrypted
+    const result = await client.query<{
+      secret_encrypted: string;
+      last_used_step: string | null;
+    }>(
+      `SELECT secret_encrypted, last_used_step
        FROM totp_methods
        WHERE user_id = $1
        FOR UPDATE`,
@@ -99,13 +103,15 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    const { decryptTotpSecret, verifyTotpCode } = await import("@/lib/totp");
+    const matchedStep = matchTotpCounter(
+      decryptTotpSecret(result.rows[0].secret_encrypted),
+      body.code
+    );
 
     if (
-      !verifyTotpCode(
-        decryptTotpSecret(result.rows[0].secret_encrypted),
-        body.code
-      )
+      matchedStep === null ||
+      (result.rows[0].last_used_step !== null &&
+        matchedStep <= BigInt(result.rows[0].last_used_step))
     ) {
       await client.query("ROLLBACK");
       return NextResponse.json(

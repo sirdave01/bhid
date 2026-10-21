@@ -162,8 +162,12 @@ Typical local settings include:
 - `WEBAUTHN_RP_ID` (optional; defaults to the `JWT_ISSUER` hostname)
 - `WEBAUTHN_RP_NAME` (optional; defaults to `BHID`)
 - `WEBAUTHN_ORIGINS` (optional; defaults to the `JWT_ISSUER` origin)
+- `RESEND_API_KEY` and `RESEND_FROM_EMAIL` for email verification delivery
+- `MFA_TOTP_ENCRYPTION_KEY` for encrypting authenticator secrets (base64-encoded 32-byte key)
 
 For local development, the PEM path variables must point to the corresponding key files. In production, configure `JWT_ACCESS_PRIVATE_KEY` and `JWT_ACCESS_PUBLIC_KEY` with the PEM contents as server-side environment variables instead. Literal `\n` sequences in those values are normalized to line breaks. Production does not fall back to local key-file paths. Keep signing keys out of client-side variables and source control.
+
+Apply `database/migrations/003_account_security.sql` before using profile, email verification, wallet-linking, or TOTP settings. Configure Resend's API key and verified sender address, and generate a separate random 32-byte TOTP encryption key for `MFA_TOTP_ENCRYPTION_KEY`; retain a secure backup because enrolled authenticator secrets cannot be decrypted without it.
 
 Never publish real secrets in this README or in example environment files.
 

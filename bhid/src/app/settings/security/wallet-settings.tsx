@@ -23,7 +23,7 @@ export default function WalletSettings() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
 
-  async function loadWallet(signal?: AbortSignal) {
+  async function loadWallet(signal?: AbortSignal): Promise<LinkedWallet> {
     const response = await fetch("/api/account/profile", {
       cache: "no-store",
       signal,
@@ -42,7 +42,7 @@ export default function WalletSettings() {
     }
 
     const data = payload.data;
-    setWallet({
+    return {
       address:
         "walletAddress" in data && typeof data.walletAddress === "string"
           ? data.walletAddress
@@ -51,21 +51,23 @@ export default function WalletSettings() {
         "walletVerifiedAt" in data && typeof data.walletVerifiedAt === "string"
           ? data.walletVerifiedAt
           : null,
-    });
+    };
   }
 
   useEffect(() => {
     const controller = new AbortController();
 
-    void loadWallet(controller.signal).catch((error: unknown) => {
-      if (!controller.signal.aborted) {
-        setMessage(
-          error instanceof Error
-            ? error.message
-            : "Unable to load your linked wallet."
-        );
-      }
-    });
+    void loadWallet(controller.signal)
+      .then(setWallet)
+      .catch((error: unknown) => {
+        if (!controller.signal.aborted) {
+          setMessage(
+            error instanceof Error
+              ? error.message
+              : "Unable to load your linked wallet."
+          );
+        }
+      });
 
     return () => controller.abort();
   }, []);
@@ -159,7 +161,7 @@ export default function WalletSettings() {
       setChallenge(null);
       setSignature("");
       setAddress("");
-      await loadWallet();
+      setWallet(await loadWallet());
     } catch (error) {
       setMessage(
         error instanceof Error

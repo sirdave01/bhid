@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { PoolClient } from "pg";
 
-import { decryptTotpSecret, verifyTotpCode } from "@/lib/totp";
+import { decryptTotpSecret, matchTotpCounter } from "@/lib/totp";
 import { generateRefreshToken, hashToken, signAccessToken } from "@/lib/auth";
 import { getJwtConfig } from "@/lib/jwt-keys";
 import pool from "@/lib/db";
@@ -18,6 +18,7 @@ type LoginChallenge = {
   email_verified_at: Date | null;
   auth_version: number;
   secret_encrypted: string;
+  last_used_step: string | null;
   attempts: number;
 };
 
@@ -79,7 +80,8 @@ export async function POST(request: NextRequest) {
          u.email,
          u.email_verified_at,
          u.auth_version,
-         m.secret_encrypted
+         m.secret_encrypted,
+         m.last_used_step
        FROM totp_login_challenges AS c
        JOIN users AS u
          ON u.id = c.user_id
@@ -90,7 +92,7 @@ export async function POST(request: NextRequest) {
          AND c.expires_at > NOW()
          AND c.attempts < 5
          AND u.status = 'ACTIVE'
-       FOR UPDATE OF c, u`,
+       FOR UPDATE OF c, u, m`,
       [hashToken(body.challengeToken)]
     );
     user = result.rows[0];
@@ -101,11 +103,15 @@ export async function POST(request: NextRequest) {
       return invalidCode();
     }
 
+    const matchedStep = matchTotpCounter(
+      decryptTotpSecret(user.secret_encrypted),
+      body.code
+    );
+
     if (
-      !verifyTotpCode(
-        decryptTotpSecret(user.secret_encrypted),
-        body.code
-      )
+      matchedStep === null ||
+      (user.last_used_step !== null &&
+        matchedStep <= BigInt(user.last_used_step))
     ) {
       await client.query(
         `UPDATE totp_login_challenges
@@ -118,6 +124,13 @@ export async function POST(request: NextRequest) {
       transactionOpen = false;
       return invalidCode();
     }
+
+    await client.query(
+      `UPDATE totp_methods
+       SET last_used_step = $2
+       WHERE user_id = $1`,
+      [user.user_id, matchedStep.toString()]
+    );
 
     await client.query(
       `UPDATE totp_login_challenges

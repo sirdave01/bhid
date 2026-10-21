@@ -1,23 +1,24 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 export default function VerifyEmailForm() {
-  const [token, setToken] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.hash.slice(1));
-    setToken(params.get("token") ?? "");
-    window.history.replaceState(null, "", window.location.pathname);
-  }, []);
 
   async function verifyEmail() {
     setBusy(true);
     setMessage("");
 
     try {
+      const params = new URLSearchParams(window.location.hash.slice(1));
+      const token = params.get("token");
+
+      if (!token) {
+        throw new Error("This link is missing its verification token.");
+      }
+
+      window.history.replaceState(null, "", window.location.pathname);
       const response = await fetch("/api/auth/email/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -35,10 +36,6 @@ export default function VerifyEmailForm() {
       }
 
       setMessage(payload.message);
-
-      if (!response.ok) {
-        setToken("");
-      }
     } catch (error) {
       setMessage(
         error instanceof Error
@@ -63,18 +60,12 @@ export default function VerifyEmailForm() {
       )}
       <button
         className="rounded-lg bg-white px-4 py-3 text-sm font-medium text-zinc-950 disabled:cursor-not-allowed disabled:opacity-50"
-        disabled={!token || busy}
+        disabled={busy}
         onClick={() => void verifyEmail()}
         type="button"
       >
         {busy ? "Verifying…" : "Confirm email address"}
       </button>
-      {!token && !message && (
-        <p className="text-sm text-zinc-300">
-          This link is missing its verification token. Request a new one from
-          account settings.
-        </p>
-      )}
     </div>
   );
 }

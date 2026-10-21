@@ -29,7 +29,7 @@ export default function TotpManager() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
 
-  async function refreshStatus(signal?: AbortSignal) {
+  async function loadStatus(signal?: AbortSignal): Promise<boolean> {
     const response = await fetch("/api/auth/mfa/totp", {
       cache: "no-store",
       signal,
@@ -49,13 +49,14 @@ export default function TotpManager() {
       throw new Error("Unable to check authenticator MFA status.");
     }
 
-    setEnabled(payload.data.enabled);
+    return payload.data.enabled;
   }
 
   useEffect(() => {
     const controller = new AbortController();
 
-    void refreshStatus(controller.signal)
+    void loadStatus(controller.signal)
+      .then(setEnabled)
       .catch((error: unknown) => {
         if (!controller.signal.aborted) {
           setMessage(
@@ -139,7 +140,7 @@ export default function TotpManager() {
       setMessage(payload.message);
       setCode("");
       setSetup(null);
-      await refreshStatus();
+      setEnabled(await loadStatus());
     } catch (error) {
       setMessage(
         error instanceof Error
