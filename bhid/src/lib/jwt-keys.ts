@@ -6,6 +6,10 @@ import "server-only";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
+function normalizePem(pem: string): string {
+  return pem.replace(/\\n/g, "\n");
+}
+
 function readPemFile(environmentVariable: string): string {
   const configuredPath = process.env[environmentVariable];
 
@@ -19,6 +23,20 @@ function readPemFile(environmentVariable: string): string {
     resolve(process.cwd(), configuredPath),
     "utf8"
   );
+}
+
+function readPemKey(keyVariable: string, pathVariable: string): string {
+  const configuredKey = process.env[keyVariable];
+
+  if (configuredKey) {
+    return normalizePem(configuredKey);
+  }
+
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(`${keyVariable} is missing from the environment`);
+  }
+
+  return normalizePem(readPemFile(pathVariable));
 }
 
 type JwtConfig = {
@@ -64,8 +82,14 @@ export function getJwtConfig(): JwtConfig {
     issuer,
     audience,
     keyId,
-    privateKey: readPemFile("JWT_ACCESS_PRIVATE_KEY_PATH"),
-    publicKey: readPemFile("JWT_ACCESS_PUBLIC_KEY_PATH"),
+    privateKey: readPemKey(
+      "JWT_ACCESS_PRIVATE_KEY",
+      "JWT_ACCESS_PRIVATE_KEY_PATH"
+    ),
+    publicKey: readPemKey(
+      "JWT_ACCESS_PUBLIC_KEY",
+      "JWT_ACCESS_PUBLIC_KEY_PATH"
+    ),
   };
 
   return cachedJwtConfig;

@@ -38,12 +38,12 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
   return (
     <main className="mx-auto flex min-h-screen max-w-xl flex-col justify-center px-6 py-12">
       <h1 className="text-3xl font-semibold">Sign in to BHID</h1>
-      <p className="mt-3 text-gray-600">
+      <p className="mt-3 text-white text-sm">
         Use your BHID account to continue securely.
       </p>
       <Suspense
         fallback={
-          <p className="mt-8 text-sm text-gray-600">Preparing sign in…</p>
+          <p className="mt-8 text-sm text-white">Preparing sign in…</p>
         }
       >
         <ContinueLogin searchParams={searchParams} />

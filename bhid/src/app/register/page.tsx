@@ -1,3 +1,8 @@
+// this is the registration page for the BHID app. 
+// It provides a user interface for creating a new account, 
+// including a form for entering user details and links for navigation. 
+// The page is styled to be responsive and user-friendly, guiding users through the account 
+// creation process.
 import type { Metadata } from "next";
 import Link from "next/link";
 
@@ -17,13 +22,13 @@ export default function RegisterPage() {
       <h1 className="mt-8 text-3xl font-semibold tracking-tight">
         Create your BHID
       </h1>
-      <p className="mt-3 text-zinc-600">
+      <p className="mt-3 text-white">
         One secure identity for the ByteHaven apps you trust.
       </p>
       <RegisterForm />
-      <p className="mt-6 text-sm text-zinc-600">
+      <p className="mt-6 text-sm text-white">
         Already have an account?{" "}
-        <Link className="font-medium text-zinc-950 underline" href="/login">
+        <Link className="font-medium text-white underline" href="/login">
           Sign in
         </Link>
       </p>

@@ -12,13 +12,42 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const siteUrl =
+  process.env.NEXT_PUBLIC_SITE_URL ??
+  (process.env.VERCEL_URL
+    ? `https://${process.env.VERCEL_URL}`
+    : "http://localhost:3000");
+
 export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl),
   title: {
     default: "BHID — ByteHaven Identity",
     template: "%s | BHID",
   },
   description:
     "One secure identity for your ByteHaven apps, protected by passkeys and portable sign-in.",
+  openGraph: {
+    type: "website",
+    siteName: "BHID",
+    title: "BHID — ByteHaven Identity",
+    description:
+      "One secure identity for your ByteHaven apps, protected by passkeys and portable sign-in.",
+    images: [
+      {
+        url: "/opengraph-image.png",
+        width: 1254,
+        height: 1254,
+        alt: "BHID — ByteHaven Identity",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "BHID — ByteHaven Identity",
+    description:
+      "One secure identity for your ByteHaven apps, protected by passkeys and portable sign-in.",
+    images: ["/opengraph-image.png"],
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

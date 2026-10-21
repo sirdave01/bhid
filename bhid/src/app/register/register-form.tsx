@@ -1,3 +1,9 @@
+
+// this is the registration form for the BHID app. 
+// It handles user input, form submission, and error handling for creating a new account. 
+// The form includes fields for first name, last name, email, username (optional), password and confirm password. 
+// It also provides feedback to the user based on the success or failure of the registration attempt.
+
 "use client";
 
 import { useState, type FormEvent } from "react";
@@ -60,6 +66,7 @@ export default function RegisterForm() {
           email: form.get("email"),
           username: form.get("username"),
           password: form.get("password"),
+          confirmPassword: form.get("confirmPassword"),
         }),
       });
 
@@ -131,6 +138,15 @@ export default function RegisterForm() {
         required
         type="password"
       />
+      <Field
+        autoComplete="new-password"
+        error={errors.confirmPassword?.[0]}
+        label="Confirm password"
+        minLength={12}
+        name="confirmPassword"
+        required
+        type="password"
+      />
       {message && (
         <p
           className={`rounded-lg border p-3 text-sm ${
@@ -152,13 +168,13 @@ export default function RegisterForm() {
       </button>
       {message?.startsWith("Your BHID") && (
         <a
-          className="block text-center text-sm font-medium text-zinc-950 underline"
+          className="block text-center text-sm font-medium text-white underline"
           href="/login"
         >
           Continue to sign in
         </a>
       )}
-      <p className="text-center text-xs leading-5 text-zinc-500">
+      <p className="text-center text-xs leading-5 text-white">
         By creating an account, you agree to keep your sign-in details secure.
       </p>
     </form>
@@ -193,7 +209,7 @@ function Field({
 
   return (
     <div>
-      <label className="block text-sm font-medium text-zinc-800" htmlFor={name}>
+      <label className="block text-sm font-medium text-white" htmlFor={name}>
         {label}
       </label>
       <input
@@ -204,7 +220,7 @@ function Field({
         }
         aria-invalid={Boolean(error)}
         autoComplete={autoComplete}
-        className="mt-1 w-full rounded-lg border border-zinc-300 bg-white px-3 py-2.5 text-sm outline-none transition placeholder:text-zinc-400 focus:border-zinc-700 focus:ring-2 focus:ring-zinc-200"
+        className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2.5 text-sm text-white outline-none transition placeholder:text-zinc-400 focus:border-zinc-400 focus:ring-2 focus:ring-zinc-700"
         id={name}
         minLength={minLength}
         name={name}

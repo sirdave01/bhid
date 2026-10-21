@@ -102,7 +102,7 @@ export default function LoginForm({ continueTo }: LoginFormProps) {
         </label>
         <input
           autoComplete="username"
-          className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2"
+          className="mt-1 w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-white placeholder:text-zinc-400"
           id="email"
           name="email"
           required
@@ -115,7 +115,7 @@ export default function LoginForm({ continueTo }: LoginFormProps) {
         </label>
         <input
           autoComplete="current-password"
-          className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2"
+          className="mt-1 w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-white placeholder:text-zinc-400"
           id="password"
           name="password"
           required
@@ -137,7 +137,7 @@ export default function LoginForm({ continueTo }: LoginFormProps) {
       </form>
       <div className="flex items-center gap-3" aria-hidden="true">
         <span className="h-px flex-1 bg-gray-200" />
-        <span className="text-xs uppercase tracking-wide text-gray-500">or</span>
+        <span className="text-xs uppercase tracking-wide text-white">or</span>
         <span className="h-px flex-1 bg-gray-200" />
       </div>
       <button
@@ -148,9 +148,9 @@ export default function LoginForm({ continueTo }: LoginFormProps) {
       >
         Sign in with a passkey
       </button>
-      <p className="text-center text-sm text-zinc-600">
+      <p className="text-center text-sm text-white">
         New to BHID?{" "}
-        <Link className="font-medium text-zinc-950 underline" href="/register">
+        <Link className="font-medium text-white underline" href="/register">
           Create an account
         </Link>
       </p>

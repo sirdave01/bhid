@@ -1,8 +1,8 @@
 # BHID — ByteHaven Identity
 
-**BHID (ByteHaven Identity)** is the centralized authentication and identity service being developed for the ByteHaven ecosystem.
+**BHID (ByteHaven Identity)** is the centralized authentication and identity service being developed for the ByteHaven ecosystem and other third-party applications
 
-Its long-term goal is to provide a secure, reusable identity system through which users can access ByteHaven applications such as HavenSocial and HavenPay without needing a separate account for every product.
+Its long-term goal is to provide a secure, reusable identity system through which users can access ByteHaven applications such as HavenSocial and HavenPay and other thrid-party applications without needing a separate account for every product.
 
 BHID is being developed incrementally, with an emphasis on understanding the underlying technologies, security principles, and implementation decisions.
 
@@ -163,7 +163,7 @@ Typical local settings include:
 - `WEBAUTHN_RP_NAME` (optional; defaults to `BHID`)
 - `WEBAUTHN_ORIGINS` (optional; defaults to the `JWT_ISSUER` origin)
 
-The PEM paths must point to the corresponding local key files. Production will use separately provisioned signing keys and the production issuer, configured through secure server-side environment variables or an appropriate key-management service.
+For local development, the PEM path variables must point to the corresponding key files. In production, configure `JWT_ACCESS_PRIVATE_KEY` and `JWT_ACCESS_PUBLIC_KEY` with the PEM contents as server-side environment variables instead. Literal `\n` sequences in those values are normalized to line breaks. Production does not fall back to local key-file paths. Keep signing keys out of client-side variables and source control.
 
 Never publish real secrets in this README or in example environment files.
 

@@ -1,4 +1,8 @@
 import Link from "next/link";
+import { connection } from "next/server";
+import { Suspense } from "react";
+
+import { getFounderSession } from "@/lib/founder-access";
 
 const features = [
   {
@@ -35,20 +39,9 @@ export default function Home() {
           </span>
           <span className="text-lg font-semibold tracking-tight">BHID</span>
         </Link>
-        <nav aria-label="Main navigation" className="flex items-center gap-3">
-          <Link
-            className="rounded-lg px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-white"
-            href="/login"
-          >
-            Sign in
-          </Link>
-          <Link
-            className="rounded-lg bg-zinc-950 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700"
-            href="/register"
-          >
-            Create account
-          </Link>
-        </nav>
+        <Suspense fallback={null}>
+          <NavigationLinks />
+        </Suspense>
       </header>
 
       <section className="mx-auto grid w-full max-w-7xl items-center gap-14 px-6 pb-20 pt-14 lg:grid-cols-[1.2fr_0.8fr] lg:px-10 lg:pb-28 lg:pt-24">
@@ -199,5 +192,93 @@ export default function Home() {
         </Link>
       </footer>
     </main>
+  );
+}
+
+async function NavigationLinks() {
+  await connection();
+
+  const isFounder = Boolean(await getFounderSession());
+
+  return (
+    <nav aria-label="Main navigation">
+      <div className="hidden items-center gap-3 md:flex">
+        <Link
+          className="rounded-lg px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-white"
+          href="/login"
+        >
+          Sign in
+        </Link>
+        <Link
+          className="rounded-lg bg-zinc-950 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700"
+          href="/register"
+        >
+          Create account
+        </Link>
+        {isFounder && (
+          <Link
+            className="rounded-lg px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-white"
+            href="/founder"
+          >
+            Founder
+          </Link>
+        )}
+      </div>
+      <details className="group relative md:hidden">
+        <summary
+          aria-label="Open navigation menu"
+          className="flex h-10 w-10 cursor-pointer list-none items-center justify-center rounded-lg border border-zinc-300 bg-white text-zinc-900 hover:bg-zinc-50 [&::-webkit-details-marker]:hidden"
+        >
+          <svg
+            aria-hidden="true"
+            className="h-5 w-5 group-open:hidden"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <path
+              d="M4 6h16M4 12h16M4 18h16"
+              stroke="currentColor"
+              strokeLinecap="round"
+              strokeWidth="1.8"
+            />
+          </svg>
+          <svg
+            aria-hidden="true"
+            className="hidden h-5 w-5 group-open:block"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <path
+              d="m6 6 12 12M18 6 6 18"
+              stroke="currentColor"
+              strokeLinecap="round"
+              strokeWidth="1.8"
+            />
+          </svg>
+        </summary>
+        <div className="absolute right-0 z-10 mt-2 flex min-w-48 flex-col gap-1 rounded-xl border border-zinc-200 bg-white p-2 shadow-lg">
+          <Link
+            className="rounded-lg px-3 py-2 text-sm font-medium text-zinc-800 hover:bg-zinc-100"
+            href="/login"
+          >
+            Sign in
+          </Link>
+          <Link
+            className="rounded-lg px-3 py-2 text-sm font-medium text-zinc-800 hover:bg-zinc-100"
+            href="/register"
+          >
+            Create account
+          </Link>
+          {isFounder && (
+            <Link
+              className="rounded-lg px-3 py-2 text-sm font-medium text-zinc-800 hover:bg-zinc-100"
+              href="/founder"
+            >
+              Founder
+            </Link>
+          )}
+        </div>
+      </details>
+    </nav>
   );
 }
