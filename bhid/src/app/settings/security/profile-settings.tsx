@@ -131,7 +131,7 @@ export default function ProfileSettings() {
   }
 
   return (
-    <section className="mt-8 rounded-2xl border border-zinc-700 bg-zinc-900 p-6 text-white shadow-sm">
+    <section id="profile" className="mt-8 rounded-2xl border border-zinc-700 bg-zinc-900 p-6 text-white shadow-sm">
       <h2 className="text-xl font-semibold tracking-tight">Profile</h2>
       <p className="mt-1 text-sm text-zinc-300">
         Manage your account details. Your date of birth is private and is never

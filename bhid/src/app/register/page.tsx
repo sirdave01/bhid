@@ -6,6 +6,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import AccountNavigation from "@/components/account-navigation";
 import RegisterForm from "./register-form";
 
 export const metadata: Metadata = {
@@ -16,9 +17,7 @@ export const metadata: Metadata = {
 export default function RegisterPage() {
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-xl flex-col justify-center bg-zinc-950 px-6 py-12 text-white">
-      <Link className="text-sm font-semibold tracking-wide" href="/">
-        BHID
-      </Link>
+      <AccountNavigation />
       <h1 className="mt-8 text-3xl font-semibold tracking-tight">
         Create your BHID
       </h1>

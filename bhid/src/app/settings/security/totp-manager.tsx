@@ -158,8 +158,8 @@ export default function TotpManager() {
         Authenticator MFA
       </h2>
       <p className="mt-1 text-sm text-zinc-300">
-        Password sign-ins require a time-based code when enabled. Passkey
-        sign-in remains available as an alternative.
+        An authenticator code is required during account creation and password
+        recovery. It is not requested during sign-in.
       </p>
       {setup && (
         <div className="mt-5 space-y-4 rounded-xl border border-zinc-700 bg-zinc-950 p-4">
@@ -206,14 +206,9 @@ export default function TotpManager() {
               Confirm setup
             </button>
           ) : (
-            <button
-              className="rounded-lg border border-zinc-500 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-              disabled={busy || code.length !== 6}
-              onClick={() => void submitCode("/api/auth/mfa/totp", "DELETE")}
-              type="button"
-            >
-              Disable MFA
-            </button>
+            <p className="self-center text-sm text-zinc-300">
+              MFA is required for secure password recovery.
+            </p>
           )}
         </div>
       )}

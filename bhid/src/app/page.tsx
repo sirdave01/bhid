@@ -204,6 +204,24 @@ async function NavigationLinks() {
     <nav aria-label="Main navigation">
       <div className="hidden items-center gap-3 md:flex">
         <Link
+          className="rounded-lg px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-white"
+          href="/settings/security#profile"
+        >
+          Profile
+        </Link>
+        <Link
+          className="rounded-lg px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-white"
+          href="/settings/security"
+        >
+          Security
+        </Link>
+        <Link
+          className="rounded-lg px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-white"
+          href="/forgot-password"
+        >
+          Password
+        </Link>
+        <Link
           className="rounded-lg px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-white"
           href="/login"
         >
@@ -257,6 +275,30 @@ async function NavigationLinks() {
           </svg>
         </summary>
         <div className="absolute right-0 z-10 mt-2 flex min-w-48 flex-col gap-1 rounded-xl border border-zinc-200 bg-white p-2 shadow-lg">
+          <Link
+            className="rounded-lg px-3 py-2 text-sm font-medium text-zinc-800 hover:bg-zinc-100"
+            href="/"
+          >
+            Home
+          </Link>
+          <Link
+            className="rounded-lg px-3 py-2 text-sm font-medium text-zinc-800 hover:bg-zinc-100"
+            href="/settings/security#profile"
+          >
+            Profile settings
+          </Link>
+          <Link
+            className="rounded-lg px-3 py-2 text-sm font-medium text-zinc-800 hover:bg-zinc-100"
+            href="/settings/security"
+          >
+            Security settings
+          </Link>
+          <Link
+            className="rounded-lg px-3 py-2 text-sm font-medium text-zinc-800 hover:bg-zinc-100"
+            href="/forgot-password"
+          >
+            Password reset
+          </Link>
           <Link
             className="rounded-lg px-3 py-2 text-sm font-medium text-zinc-800 hover:bg-zinc-100"
             href="/login"
