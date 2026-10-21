@@ -72,3 +72,61 @@ export const loginSchema = z.object({
     .max(128, "Password must be less than 128 characters or fewer"),
 });
 export type LoginInput = z.infer<typeof loginSchema>;
+
+const optionalUsername = z.preprocess(
+  (value) =>
+    typeof value === "string" && value.trim() === ""
+      ? null
+      : typeof value === "string"
+        ? value.trim().toLowerCase()
+        : value,
+  z
+    .string()
+    .min(3)
+    .max(30)
+    .regex(/^[a-z0-9_]+$/)
+    .nullable()
+);
+
+const optionalProfileText = (maximum: number) =>
+  z.preprocess(
+    (value) =>
+      typeof value === "string" && value.trim() === ""
+        ? null
+        : typeof value === "string"
+          ? value.trim()
+          : value,
+    z.string().max(maximum).nullable()
+  );
+
+export const accountProfileSchema = z.object({
+  displayName: z.string().trim().min(1).max(80),
+  username: optionalUsername,
+  bio: optionalProfileText(500),
+  avatarUrl: z.preprocess(
+    (value) =>
+      typeof value === "string" && value.trim() === ""
+        ? null
+        : typeof value === "string"
+          ? value.trim()
+          : value,
+    z
+      .string()
+      .url()
+      .max(2048)
+      .refine((value) => new URL(value).protocol === "https:")
+      .nullable()
+  ),
+  dateOfBirth: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .refine((value) => {
+      const date = new Date(`${value}T00:00:00.000Z`);
+      return (
+        !Number.isNaN(date.getTime()) &&
+        date.toISOString().slice(0, 10) === value &&
+        date.getTime() <= Date.now()
+      );
+    })
+    .nullable(),
+});

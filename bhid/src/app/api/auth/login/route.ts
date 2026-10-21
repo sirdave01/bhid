@@ -3,6 +3,7 @@
 // format and constraints. The route also uses the getJwtConfig function to retrieve the JWT
 // configuration for generating access tokens upon successful authentication.
 
+import { randomBytes } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import type { PoolClient } from "pg";
 
@@ -119,6 +120,46 @@ export async function POST(request: NextRequest) {
         message: "Invalid email or password",
       },
       { status: 401 }
+    );
+  }
+
+  try {
+    const mfaResult = await pool.query(
+      `SELECT 1
+       FROM totp_methods
+       WHERE user_id = $1
+       LIMIT 1`,
+      [user.id]
+    );
+
+    if (mfaResult.rowCount) {
+      const challengeToken = randomBytes(32).toString("base64url");
+
+      await pool.query(
+        `INSERT INTO totp_login_challenges (
+           user_id,
+           token_hash,
+           expires_at
+         )
+         VALUES ($1, $2, NOW() + INTERVAL '5 minutes')`,
+        [user.id, hashToken(challengeToken)]
+      );
+
+      return NextResponse.json({
+        success: true,
+        mfaRequired: true,
+        message: "Enter the code from your authenticator app",
+        data: { challengeToken },
+      });
+    }
+  } catch (error) {
+    console.error("Login MFA lookup failed:", error);
+    return NextResponse.json(
+      {
+        success: false,
+        message: "Unable to sign in right now",
+      },
+      { status: 500 }
     );
   }
 
