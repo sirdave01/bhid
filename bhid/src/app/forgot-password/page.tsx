@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 
 import AccountNavigation from "@/components/account-navigation";
 import PasswordResetForm from "./password-reset-form";
@@ -6,7 +7,9 @@ import PasswordResetForm from "./password-reset-form";
 export default function ForgotPasswordPage() {
   return (
     <main className="mx-auto min-h-screen w-full max-w-xl flex-1 bg-zinc-950 px-6 py-10 text-white">
-      <AccountNavigation />
+      <Suspense fallback={<div className="mb-6 h-12" />}>
+        <AccountNavigation />
+      </Suspense>
       <h1 className="mt-10 text-3xl font-semibold tracking-tight">
         Reset your password
       </h1>
