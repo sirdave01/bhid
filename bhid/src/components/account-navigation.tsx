@@ -1,28 +1,64 @@
+import { cookies } from "next/headers";
+import Image from "next/image";
 import Link from "next/link";
 
-export default function AccountNavigation() {
+import SignOutButton from "@/components/sign-out-button";
+import { getAuthenticatedSession } from "@/lib/session";
+
+export default async function AccountNavigation() {
+  const accessToken = (await cookies()).get("bhid_access")?.value;
+  const session = await getAuthenticatedSession(accessToken);
+  const brand = (
+    <Image
+      alt="BHID"
+      className="h-10 w-10 rounded-lg"
+      height={40}
+      src="/icon.png"
+      width={40}
+    />
+  );
+
   return (
     <nav
       aria-label="Account navigation"
       className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-800 pb-4"
     >
-      <Link className="font-semibold tracking-wide text-white" href="/">
-        BHID
-      </Link>
-      <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm text-zinc-300">
-        <Link className="hover:text-white" href="/">
-          Home
+      {session ? (
+        <span aria-label="BHID" className="flex items-center">
+          {brand}
+        </span>
+      ) : (
+        <Link aria-label="BHID home" className="flex items-center" href="/">
+          {brand}
         </Link>
-        <Link className="hover:text-white" href="/settings/security#profile">
-          Profile
-        </Link>
-        <Link className="hover:text-white" href="/settings/security">
-          Security
-        </Link>
-        <Link className="hover:text-white" href="/forgot-password">
-          Password
-        </Link>
-      </div>
+      )}
+
+      {session ? (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-zinc-300">
+          <Link className="hover:text-white" href="/settings/profile">
+            Profile
+          </Link>
+          <Link className="hover:text-white" href="/settings/security">
+            Security
+          </Link>
+          <Link className="hover:text-white" href="/settings/wallet">
+            Wallet
+          </Link>
+          <Link className="hover:text-white" href="/settings/password">
+            Password
+          </Link>
+          <SignOutButton />
+        </div>
+      ) : (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-zinc-300">
+          <Link className="hover:text-white" href="/login">
+            Sign in
+          </Link>
+          <Link className="hover:text-white" href="/register">
+            Create account
+          </Link>
+        </div>
+      )}
     </nav>
   );
 }

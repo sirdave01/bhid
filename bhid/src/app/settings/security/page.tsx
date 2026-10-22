@@ -3,14 +3,12 @@ import type { Metadata } from "next";
 import AccountNavigation from "@/components/account-navigation";
 import EmailVerification from "./email-verification";
 import PasskeyManager from "./passkey-manager";
-import ProfileSettings from "./profile-settings";
 import SessionManager from "./session-manager";
 import TotpManager from "./totp-manager";
-import WalletSettings from "./wallet-settings";
 
 export const metadata: Metadata = {
   title: "Security settings | BHID",
-  description: "Review and manage your BHID account sessions.",
+  description: "Manage MFA, passkeys, email verification, and sessions.",
 };
 
 export default function SecuritySettingsPage() {
@@ -20,15 +18,13 @@ export default function SecuritySettingsPage() {
       <p className="text-sm font-medium uppercase tracking-widest text-zinc-300">
         BHID account
       </p>
-      <h1 className="mt-2 text-3xl font-semibold tracking-tight">
+      <h1 className="mt-2 text-3xl font-semibold tracking-tight" id="security">
         Security settings
       </h1>
       <p className="mt-3 max-w-2xl text-zinc-300">
-        Review devices with access to your account and revoke sessions you no
-        longer recognize.
+        Manage authenticator MFA, passkeys, email verification, and the devices
+        connected to your account.
       </p>
-      <ProfileSettings />
-      <WalletSettings />
       <EmailVerification />
       <TotpManager />
       <PasskeyManager />
