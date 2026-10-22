@@ -108,13 +108,13 @@ export default function TotpManager() {
     }
   }
 
-  async function submitCode(path: string, method: "POST" | "DELETE") {
+  async function submitCode(path: string) {
     setBusy(true);
     setMessage("");
 
     try {
       const response = await fetch(path, {
-        method,
+        method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ code }),
       });
@@ -200,7 +200,7 @@ export default function TotpManager() {
             <button
               className="rounded-lg bg-white px-4 py-2 text-sm font-medium text-zinc-950 disabled:opacity-50"
               disabled={busy || code.length !== 6}
-              onClick={() => void submitCode("/api/auth/mfa/totp/confirm", "POST")}
+              onClick={() => void submitCode("/api/auth/mfa/totp/confirm")}
               type="button"
             >
               Confirm setup

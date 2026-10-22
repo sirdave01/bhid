@@ -20,7 +20,7 @@ Milestone 3 — Login and sessions
 [x] Store only the refresh-token hash in PostgreSQL
 [x] Sign a short-lived RS256 access token
 [x] Set refresh token in a secure HttpOnly cookie
-[ ] Test incorrect passwords and session creation
+[x] Test incorrect passwords and session creation
 
 Milestone 4 — Session lifecycle
 [x] Refresh tokens rotate atomically

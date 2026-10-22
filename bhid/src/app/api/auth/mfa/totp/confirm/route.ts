@@ -123,7 +123,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: "Authenticator MFA is enabled for password sign-ins",
+      message:
+        "Authenticator MFA is enabled for account creation and password recovery. Sign-in will not request a code.",
     });
   } catch (error) {
     await client.query("ROLLBACK");

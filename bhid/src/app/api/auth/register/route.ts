@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
+import type { PoolClient } from "pg";
 
 import pool from "@/lib/db";
 import { hashPassword, hashToken } from "@/lib/auth";
@@ -64,8 +65,19 @@ export async function POST(request: NextRequest) {
       { status: 503 }
     );
   }
+
   const challengeToken = randomBytes(32).toString("base64url");
-  const client = await pool.connect();
+  let client: PoolClient;
+
+  try {
+    client = await pool.connect();
+  } catch (error) {
+    console.error("Registration database connection failed:", error);
+    return NextResponse.json(
+      { success: false, message: "Unable to create account right now" },
+      { status: 500 }
+    );
+  }
 
   try {
     await client.query("BEGIN");

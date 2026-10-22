@@ -166,7 +166,7 @@ Typical local settings include:
 - `RESEND_API_KEY` and `RESEND_FROM_EMAIL` for email verification and password recovery delivery
 - `MFA_TOTP_ENCRYPTION_KEY` for encrypting authenticator secrets (base64-encoded 32-byte key)
 
-For local development, the PEM path variables must point to the corresponding key files. In production, configure `JWT_ACCESS_PRIVATE_KEY` and `JWT_ACCESS_PUBLIC_KEY` with the PEM contents as server-side environment variables instead. Literal `\n` sequences in those values are normalized to line breaks. Production does not fall back to local key-file paths. Keep signing keys out of client-side variables and source control.
+For local development and local `next start` smoke tests, the PEM path variables must point to the corresponding key files. On Vercel, configure `JWT_ACCESS_PRIVATE_KEY` and `JWT_ACCESS_PUBLIC_KEY` with the PEM contents as server-side environment variables instead. Literal `\n` sequences in those values are normalized to line breaks. Vercel deployments never fall back to local key-file paths. Keep signing keys out of client-side variables and source control.
 
 Set `JWT_ISSUER` to the exact public issuer URL (for example, `https://auth.bytehaven.world` in production and `http://localhost:3000` locally). Set `JWT_ACCESS_AUDIENCE` to the audience expected by this application. `JWT_ACCESS_KEY_ID` must identify the matching signing key pair. BHID validates that the configured private and public keys match at runtime and reports a server-side configuration error if they do not.
 

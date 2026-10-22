@@ -21,7 +21,7 @@ function readPemFile(environmentVariable: string): string {
   }
 
   return readFileSync(
-    resolve(process.cwd(), configuredPath),
+    resolve(/*turbopackIgnore: true*/ process.cwd(), configuredPath),
     "utf8"
   );
 }
@@ -33,7 +33,7 @@ function readPemKey(keyVariable: string, pathVariable: string): string {
     return normalizePem(configuredKey);
   }
 
-  if (process.env.NODE_ENV === "production") {
+  if (process.env.NODE_ENV === "production" && process.env.VERCEL) {
     throw new Error(`${keyVariable} is missing from the environment`);
   }
 
