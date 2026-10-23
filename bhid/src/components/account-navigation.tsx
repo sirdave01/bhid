@@ -1,11 +1,14 @@
 import { cookies } from "next/headers";
 import Image from "next/image";
 import Link from "next/link";
+import { connection } from "next/server";
 
 import SignOutButton from "@/components/sign-out-button";
+import { isFounderAccount } from "@/lib/founder-access";
 import { getAuthenticatedSession } from "@/lib/session";
 
 export default async function AccountNavigation() {
+  await connection();
   const accessToken = (await cookies()).get("bhid_access")?.value;
   const session = await getAuthenticatedSession(accessToken);
   const brand = (
@@ -47,6 +50,11 @@ export default async function AccountNavigation() {
           <Link className="hover:text-white" href="/settings/password">
             Password
           </Link>
+          {isFounderAccount(session) && (
+            <Link className="hover:text-white" href="/founder">
+              Founder
+            </Link>
+          )}
           <SignOutButton />
         </div>
       ) : (

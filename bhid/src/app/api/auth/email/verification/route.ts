@@ -3,9 +3,9 @@ import { NextRequest, NextResponse } from "next/server";
 import type { PoolClient } from "pg";
 
 import { getRequestSession } from "@/lib/account-session";
+import { getAppBaseUrl } from "@/lib/app-base-url";
 import { hashToken } from "@/lib/auth";
 import pool from "@/lib/db";
-import { getJwtConfig } from "@/lib/jwt-keys";
 
 export async function POST(request: NextRequest) {
   let session;
@@ -15,8 +15,11 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Email verification session lookup failed:", error);
     return NextResponse.json(
-      { success: false, message: "Unable to request verification right now" },
-      { status: 500 }
+      {
+        success: false,
+        message: "Unable to check your signed-in account right now",
+      },
+      { status: 503 }
     );
   }
 
@@ -36,6 +39,7 @@ export async function POST(request: NextRequest) {
 
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.RESEND_FROM_EMAIL;
+  const replyTo = process.env.EMAIL_REPLY_TO?.trim();
 
   if (!apiKey || !from) {
     return NextResponse.json(
@@ -51,9 +55,9 @@ export async function POST(request: NextRequest) {
   let verificationUrl: URL;
 
   try {
-    verificationUrl = new URL("/verify-email", getJwtConfig().issuer);
+    verificationUrl = new URL("/verify-email", getAppBaseUrl());
   } catch (error) {
-    console.error("Email verification issuer configuration failed:", error);
+    console.error("Email verification app URL configuration failed:", error);
     return NextResponse.json(
       { success: false, message: "Email verification is not configured" },
       { status: 503 }
@@ -65,6 +69,7 @@ export async function POST(request: NextRequest) {
   let client: PoolClient | undefined;
   let transactionOpen = false;
   let tokenStored = false;
+  let phase: "database" | "email delivery" = "database";
 
   try {
     client = await pool.connect();
@@ -118,6 +123,7 @@ export async function POST(request: NextRequest) {
     verificationUrl.hash = new URLSearchParams({
       token: verificationToken,
     }).toString();
+    phase = "email delivery";
     const emailResponse = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
@@ -126,6 +132,7 @@ export async function POST(request: NextRequest) {
       },
       body: JSON.stringify({
         from,
+        ...(replyTo ? { reply_to: replyTo } : {}),
         to: [session.email],
         subject: "Verify your BHID email address",
         html: `<p>Confirm your email address for BHID by using the button below.</p><p><a href="${verificationUrl.toString()}">Verify email address</a></p><p>This link expires in 30 minutes. If you did not request it, you can ignore this message.</p>`,
@@ -174,10 +181,35 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    console.error("Email verification request failed:", error);
+    console.error(`Email verification ${phase} failed:`, error);
+    const errorCode =
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      typeof error.code === "string"
+        ? error.code
+        : undefined;
+
+    if (phase === "database" && errorCode === "42P01") {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Email verification is not initialized. Apply database migration 003_account_security.sql.",
+        },
+        { status: 503 }
+      );
+    }
+
     return NextResponse.json(
-      { success: false, message: "Unable to request verification right now" },
-      { status: 500 }
+      {
+        success: false,
+        message:
+          phase === "database"
+            ? "Unable to prepare email verification right now"
+            : "Unable to deliver the verification email right now",
+      },
+      { status: phase === "database" ? 503 : 502 }
     );
   } finally {
     client?.release();

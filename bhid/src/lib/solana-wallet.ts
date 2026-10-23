@@ -53,9 +53,40 @@ export function verifySolanaMessage(
   signature: string
 ): boolean {
   const publicKeyBytes = decodeBase58(address);
-  const signatureBytes = decodeBase58(signature);
 
-  if (publicKeyBytes.length !== 32 || signatureBytes.length !== 64) {
+  if (publicKeyBytes.length !== 32) {
+    return false;
+  }
+
+  const signatureCandidates: Buffer[] = [];
+
+  try {
+    signatureCandidates.push(decodeBase58(signature));
+  } catch {
+    // Wallet adapters commonly expose the same signature as Base64 bytes.
+  }
+
+  try {
+    if (/^[A-Za-z0-9+/_-]+={0,2}$/.test(signature)) {
+      const normalized = signature
+        .replace(/-/g, "+")
+        .replace(/_/g, "/")
+        .replace(/=+$/, "");
+      const bytes = Buffer.from(normalized, "base64");
+      const canonical = bytes.toString("base64").replace(/=+$/, "");
+
+      if (canonical === normalized) {
+        signatureCandidates.push(bytes);
+      }
+    }
+  } catch {
+    // Invalid Base64 is ignored; the other candidate format may still be valid.
+  }
+
+  const validSignatures = signatureCandidates.filter(
+    (candidate) => candidate.length === 64
+  );
+  if (!validSignatures.length) {
     return false;
   }
 
@@ -65,5 +96,7 @@ export function verifySolanaMessage(
     type: "spki",
   });
 
-  return verify(null, Buffer.from(message, "utf8"), publicKey, signatureBytes);
+  return validSignatures.some((candidate) =>
+    verify(null, Buffer.from(message, "utf8"), publicKey, candidate)
+  );
 }

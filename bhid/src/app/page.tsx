@@ -53,7 +53,16 @@ export default function Home() {
             BHID keeps your identity in one place, so you can securely sign in
             to trusted ByteHaven apps and stay in control of your account.
           </p>
-          <Suspense fallback={null}>
+          <Suspense
+            fallback={
+              <div
+                aria-label="Loading account actions"
+                aria-live="polite"
+                className="mt-9 h-12 w-full max-w-sm animate-pulse rounded-xl bg-zinc-900"
+                role="status"
+              />
+            }
+          >
             <HomeActions />
           </Suspense>
           <p className="mt-5 text-xs leading-5 text-zinc-400">
@@ -192,7 +201,13 @@ export default function Home() {
 
       <footer className="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-4 px-6 py-7 text-xs text-zinc-400 lg:px-10">
         <p>BHID · ByteHaven Identity</p>
-        <Suspense fallback={null}>
+        <Suspense
+          fallback={
+            <span aria-live="polite" className="text-zinc-500" role="status">
+              Checking account…
+            </span>
+          }
+        >
           <FooterAccountLink />
         </Suspense>
       </footer>

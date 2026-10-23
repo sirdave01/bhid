@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { PoolClient } from "pg";
 
 import pool from "@/lib/db";
+import { getAvatarPublicUrl } from "@/lib/s3";
 import { hashToken } from "@/lib/auth";
 import {
   findOAuthApplication,
@@ -321,6 +322,7 @@ export async function POST(request: NextRequest) {
          s.id AS session_id,
          p.display_name,
          p.username,
+         p.avatar_key,
          p.avatar_url
        FROM sessions AS s
        JOIN users AS u
@@ -365,7 +367,7 @@ export async function POST(request: NextRequest) {
       emailVerified: user.email_verified_at !== null,
       displayName: user.display_name,
       username: user.username,
-      avatarUrl: user.avatar_url,
+      avatarUrl: getAvatarPublicUrl(user.avatar_key, user.avatar_url),
     };
     const scopes: string[] = authorizationCode.scopes;
     const accessToken = signOAuthAccessToken(

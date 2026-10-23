@@ -160,25 +160,37 @@ Typical local settings include:
 - `JWT_ACCESS_PRIVATE_KEY_PATH`
 - `JWT_ACCESS_PUBLIC_KEY_PATH`
 - `DATABASE_URL`
+- `APP_BASE_URL` for links opened in the BHID app (`http://localhost:3000` locally; the canonical `https://` BHID URL in production)
 - `WEBAUTHN_RP_ID` (optional; defaults to the `JWT_ISSUER` hostname)
 - `WEBAUTHN_RP_NAME` (optional; defaults to `BHID`)
 - `WEBAUTHN_ORIGINS` (optional; defaults to the `JWT_ISSUER` origin)
 - `RESEND_API_KEY` and `RESEND_FROM_EMAIL` for email verification and password recovery delivery
+- `EMAIL_REPLY_TO` (optional) for replies to BHID verification and recovery emails
 - `MFA_TOTP_ENCRYPTION_KEY` for encrypting authenticator secrets (base64-encoded 32-byte key)
+- `AWS_REGION`, `AWS_S3_BUCKET`, and `AWS_S3_PUBLIC_BASE_URL` for uploaded profile pictures
 
 For local development and local `next start` smoke tests, the PEM path variables must point to the corresponding key files. On Vercel, configure `JWT_ACCESS_PRIVATE_KEY` and `JWT_ACCESS_PUBLIC_KEY` with the PEM contents as server-side environment variables instead. Literal `\n` sequences in those values are normalized to line breaks. Vercel deployments never fall back to local key-file paths. Keep signing keys out of client-side variables and source control.
 
 Set `JWT_ISSUER` to the exact public issuer URL (for example, `https://auth.bytehaven.world` in production and `http://localhost:3000` locally). Set `JWT_ACCESS_AUDIENCE` to the audience expected by this application. `JWT_ACCESS_KEY_ID` must identify the matching signing key pair. BHID validates that the configured private and public keys match at runtime and reports a server-side configuration error if they do not.
 
-For Vercel, add these variables to the **Production** environment (and Preview/Development if those environments are used): `DATABASE_URL`, `JWT_ISSUER`, `JWT_ACCESS_AUDIENCE`, `JWT_ACCESS_KEY_ID`, `JWT_ACCESS_PRIVATE_KEY`, `JWT_ACCESS_PUBLIC_KEY`, `MFA_TOTP_ENCRYPTION_KEY`, `RESEND_API_KEY`, and `RESEND_FROM_EMAIL`. Keep the two JWT keys server-only; do not prefix them with `NEXT_PUBLIC_`. Paste PEM values with real line breaks or escaped `\n` sequences. Redeploy after changing environment variables. Local `.env.local` key-path variables do not work as a production substitute.
+For Vercel, add these variables to the **Production** environment (and Preview/Development if those environments are used): `DATABASE_URL`, `APP_BASE_URL`, `JWT_ISSUER`, `JWT_ACCESS_AUDIENCE`, `JWT_ACCESS_KEY_ID`, `JWT_ACCESS_PRIVATE_KEY`, `JWT_ACCESS_PUBLIC_KEY`, `MFA_TOTP_ENCRYPTION_KEY`, `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `AWS_REGION`, `AWS_S3_BUCKET`, and `AWS_S3_PUBLIC_BASE_URL`. Set `APP_BASE_URL` to the canonical public BHID UI origin; do not use the JWT issuer unless it is also the UI origin. If omitted, the app uses Vercel's project production URL or deployment URL when available. Keep signing and AWS credentials server-only; do not prefix them with `NEXT_PUBLIC_`. Paste PEM values with real line breaks or escaped `\n` sequences. Redeploy after changing environment variables. Local `.env.local` key-path variables do not work as a production substitute.
 
 Configure Resend with an API key and a verified sender address. Generate `MFA_TOTP_ENCRYPTION_KEY` from 32 random bytes encoded as Base64 (for example, `node -e "console.log(require('node:crypto').randomBytes(32).toString('base64'))"`). Keep a secure backup of this key: enrolled authenticator secrets cannot be decrypted without it, and replacing it without re-encrypting stored secrets will break MFA-based password recovery.
+
+Configure S3 credentials using the AWS SDK default credential chain (for example, server-side `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`, or an attached AWS role). `AWS_S3_PUBLIC_BASE_URL` must point to a public HTTPS asset origin, preferably a CloudFront distribution backed by the bucket. Apply `database/migrations/005_profile_avatar_s3.sql` before deploying avatar uploads; new uploads save an S3 object key, while existing `avatar_url` values remain readable for backward compatibility.
 
 Apply `database/migrations/003_account_security.sql` before using profile, email verification, wallet-linking, or TOTP settings. Apply `database/migrations/004_password_recovery_and_signup_mfa.sql` before deploying mandatory TOTP enrollment during registration and password recovery. Review the target database and take a backup before applying migrations; the app does not run migrations automatically. Existing accounts must enroll an authenticator in Security Settings before they can use password recovery. Account MFA is not required during sign-in.
 
 Never publish real secrets in this README or in example environment files.
 
 ## Running Locally
+
+### Progressive rendering
+
+The App Router uses Cache Components and partial prerendering. The root
+`src/app/loading.tsx` provides a streamed route-level loading state, while
+Suspense boundaries let request-dependent account and authorization sections
+render progressively without blocking the static page shell.
 
 Install dependencies:
 

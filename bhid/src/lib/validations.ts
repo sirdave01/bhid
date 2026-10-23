@@ -111,20 +111,6 @@ export const accountProfileSchema = z.object({
   displayName: z.string().trim().min(1).max(80),
   username: optionalUsername,
   bio: optionalProfileText(500),
-  avatarUrl: z.preprocess(
-    (value) =>
-      typeof value === "string" && value.trim() === ""
-        ? null
-        : typeof value === "string"
-          ? value.trim()
-          : value,
-    z
-      .string()
-      .url()
-      .max(2048)
-      .refine((value) => new URL(value).protocol === "https:")
-      .nullable()
-  ),
   dateOfBirth: z
     .preprocess(
       (value) =>

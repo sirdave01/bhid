@@ -239,14 +239,14 @@ export default function WalletSettings() {
             <div className="mt-5 space-y-4">
               <p className="text-sm text-zinc-200">
                 Sign this exact message with your Solana wallet and paste the
-                resulting base58 signature. The challenge expires in five
+                resulting base58 or base64 signature. The challenge expires in five
                 minutes.
               </p>
               <pre className="overflow-x-auto whitespace-pre-wrap break-all rounded-lg bg-zinc-950 p-3 text-xs text-zinc-200">
                 {challenge.message}
               </pre>
               <label className="block text-sm font-medium" htmlFor="wallet-signature">
-                Wallet signature (base58)
+                Wallet signature (base58 or base64)
               </label>
               <textarea
                 className="min-h-20 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 font-mono text-sm text-white"

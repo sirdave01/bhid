@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { getRequestSession } from "@/lib/account-session";
 import pool from "@/lib/db";
+import { getAvatarPublicUrl } from "@/lib/s3";
 import { accountProfileSchema } from "@/lib/validations";
 
 type ProfileRow = {
@@ -9,6 +10,7 @@ type ProfileRow = {
   username: string | null;
   bio: string | null;
   avatar_url: string | null;
+  avatar_key: string | null;
   date_of_birth: string | Date | null;
   wallet_address: string | null;
   wallet_verified_at: Date | null;
@@ -35,6 +37,7 @@ export async function GET(request: NextRequest) {
          username,
          bio,
          avatar_url,
+         avatar_key,
          date_of_birth,
          wallet_address,
          wallet_verified_at
@@ -52,7 +55,10 @@ export async function GET(request: NextRequest) {
         displayName: profile?.display_name ?? "",
         username: profile?.username ?? "",
         bio: profile?.bio ?? "",
-        avatarUrl: profile?.avatar_url ?? "",
+        avatarUrl: getAvatarPublicUrl(
+          profile?.avatar_key ?? null,
+          profile?.avatar_url ?? null
+        ) ?? "",
         dateOfBirth:
           profile?.date_of_birth instanceof Date
             ? profile.date_of_birth.toISOString().slice(0, 10)
@@ -110,15 +116,13 @@ export async function PUT(request: NextRequest) {
          display_name,
          username,
          bio,
-         avatar_url,
          date_of_birth
        )
-       VALUES ($1, $2, $3, $4, $5, $6)
+       VALUES ($1, $2, $3, $4, $5)
        ON CONFLICT (user_id) DO UPDATE
        SET display_name = EXCLUDED.display_name,
            username = EXCLUDED.username,
            bio = EXCLUDED.bio,
-           avatar_url = EXCLUDED.avatar_url,
            date_of_birth = EXCLUDED.date_of_birth,
            updated_at = NOW()`,
       [
@@ -126,7 +130,6 @@ export async function PUT(request: NextRequest) {
         profile.displayName,
         profile.username,
         profile.bio,
-        profile.avatarUrl,
         profile.dateOfBirth,
       ]
     );

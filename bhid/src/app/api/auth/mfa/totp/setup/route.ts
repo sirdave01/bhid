@@ -28,6 +28,23 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const secret = createTotpSecret();
+  let encryptedSecret: string;
+
+  try {
+    encryptedSecret = encryptTotpSecret(secret);
+  } catch (error) {
+    console.error("TOTP encryption configuration failed:", error);
+    return NextResponse.json(
+      {
+        success: false,
+        message:
+          "Unable to set up MFA. Check the TOTP encryption key configuration.",
+      },
+      { status: 503 }
+    );
+  }
+
   try {
     const enabled = await pool.query(
       "SELECT 1 FROM totp_methods WHERE user_id = $1 LIMIT 1",
@@ -40,9 +57,6 @@ export async function POST(request: NextRequest) {
         { status: 409 }
       );
     }
-
-    const secret = createTotpSecret();
-    const encryptedSecret = encryptTotpSecret(secret);
 
     await pool.query(
       `INSERT INTO totp_setup_challenges (
@@ -70,12 +84,27 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error("TOTP setup failed:", error);
+    const errorCode =
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      typeof error.code === "string"
+        ? error.code
+        : undefined;
+
+    if (errorCode === "42P01") {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "MFA setup is not initialized. Apply database migration 003_account_security.sql.",
+        },
+        { status: 503 }
+      );
+    }
+
     return NextResponse.json(
-      {
-        success: false,
-        message:
-          "Unable to set up MFA. Check the TOTP encryption key configuration.",
-      },
+      { success: false, message: "Unable to set up MFA right now" },
       { status: 500 }
     );
   }

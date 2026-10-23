@@ -7,6 +7,7 @@ import type { QueryResultRow } from "pg";
 import pool from "@/lib/db";
 import { hashToken, verifyAccessToken } from "@/lib/auth";
 import { getJwtConfig } from "@/lib/jwt-keys";
+import { getAvatarPublicUrl } from "@/lib/s3";
 
 export const OIDC_ACCESS_TOKEN_SECONDS = 10 * 60;
 export const OAUTH_AUTHORIZATION_CODE_SECONDS = 5 * 60;
@@ -186,6 +187,7 @@ export async function findActiveBhidSession(
        s.id AS session_id,
        p.display_name,
        p.username,
+       p.avatar_key,
        p.avatar_url
      FROM sessions AS s
      JOIN users AS u
@@ -218,7 +220,7 @@ export async function findActiveBhidSession(
     emailVerified: user.email_verified_at !== null,
     displayName: user.display_name,
     username: user.username,
-    avatarUrl: user.avatar_url,
+    avatarUrl: getAvatarPublicUrl(user.avatar_key, user.avatar_url),
   };
 }
 

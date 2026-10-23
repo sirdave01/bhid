@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
     !UUID_PATTERN.test(body.challengeId) ||
     !("signature" in body) ||
     typeof body.signature !== "string" ||
-    body.signature.length > 100
+    body.signature.length > 120
   ) {
     return invalidChallenge();
   }

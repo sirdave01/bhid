@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { connection } from "next/server";
 import { Suspense } from "react";
 
 import { getAuthenticatedSession } from "@/lib/session";
@@ -27,6 +28,7 @@ async function AuthenticatedSettings({
 }: {
   children: React.ReactNode;
 }) {
+  await connection();
   const accessToken = (await cookies()).get("bhid_access")?.value;
   const session = await getAuthenticatedSession(accessToken);
 

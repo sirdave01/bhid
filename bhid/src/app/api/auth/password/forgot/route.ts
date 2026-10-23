@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { PoolClient } from "pg";
 
 import { hashToken } from "@/lib/auth";
-import { getJwtConfig } from "@/lib/jwt-keys";
+import { getAppBaseUrl } from "@/lib/app-base-url";
 import pool from "@/lib/db";
 import { passwordResetRequestSchema } from "@/lib/validations";
 
@@ -36,6 +36,7 @@ export async function POST(request: NextRequest) {
 
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.RESEND_FROM_EMAIL;
+  const replyTo = process.env.EMAIL_REPLY_TO?.trim();
   if (!apiKey || !from) {
     console.error("Password recovery email is not configured");
     return NextResponse.json(
@@ -46,9 +47,9 @@ export async function POST(request: NextRequest) {
 
   let resetUrl: URL;
   try {
-    resetUrl = new URL("/reset-password", getJwtConfig().issuer);
+    resetUrl = new URL("/reset-password", getAppBaseUrl());
   } catch (error) {
-    console.error("Password recovery issuer configuration failed:", error);
+    console.error("Password recovery app URL configuration failed:", error);
     return NextResponse.json(
       { success: false, message: "Password recovery is not configured" },
       { status: 503 }
@@ -133,6 +134,7 @@ export async function POST(request: NextRequest) {
       },
       body: JSON.stringify({
         from,
+        ...(replyTo ? { reply_to: replyTo } : {}),
         to: [user.email],
         subject: "Your BHID password reset code",
         html: `<p>Use this email code to reset your BHID password:</p><p style="font-size:24px;font-weight:bold;letter-spacing:4px">${emailCode}</p><p><a href="${resetUrl.toString()}">Continue password reset</a></p><p>This code and link expire in 10 minutes. Your authenticator-app code is also required. If you did not request this, you can ignore this email.</p>`,
