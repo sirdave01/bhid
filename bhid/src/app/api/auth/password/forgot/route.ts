@@ -60,6 +60,7 @@ export async function POST(request: NextRequest) {
   const emailCode = randomInt(0, 1_000_000).toString().padStart(6, "0");
   let client: PoolClient | undefined;
   let challengeStored = false;
+  let phase: "database" | "email delivery" = "database";
 
   try {
     client = await pool.connect();
@@ -126,6 +127,7 @@ export async function POST(request: NextRequest) {
     challengeStored = true;
 
     resetUrl.hash = challengeToken;
+    phase = "email delivery";
     const emailResponse = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
@@ -182,10 +184,35 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    console.error("Password recovery request failed:", error);
+    console.error(`Password recovery ${phase} failed:`, error);
+    const errorCode =
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      typeof error.code === "string"
+        ? error.code
+        : undefined;
+
+    if (phase === "database" && errorCode === "42P01") {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Password recovery is not initialized. Apply migrations 003_account_security.sql and 004_password_recovery_and_signup_mfa.sql.",
+        },
+        { status: 503 }
+      );
+    }
+
     return NextResponse.json(
-      { success: false, message: "Unable to request password recovery" },
-      { status: 500 }
+      {
+        success: false,
+        message:
+          phase === "database"
+            ? "Unable to prepare password recovery right now"
+            : "Unable to deliver the password recovery email right now",
+      },
+      { status: phase === "database" ? 500 : 502 }
     );
   } finally {
     client?.release();

@@ -2,25 +2,133 @@
 
 import { useEffect, useState } from "react";
 
+type WalletPublicKey = {
+  toBase58?: () => string;
+  toString: () => string;
+};
+
+type WalletProvider = {
+  connect: () => Promise<{ publicKey?: WalletPublicKey } | void>;
+  publicKey?: WalletPublicKey;
+  signMessage?: (
+    message: Uint8Array,
+    display?: "utf8"
+  ) => Promise<Uint8Array | { signature: Uint8Array }>;
+};
+
+type WalletOption = {
+  name: string;
+  provider: WalletProvider;
+};
+
 type LinkedWallet = {
   address: string | null;
   verifiedAt: string | null;
 };
 
-type WalletChallenge = {
-  challengeId: string;
-  message: string;
-};
+declare global {
+  interface Window {
+    phantom?: { solana?: WalletProvider };
+    bitkeep?: { solana?: WalletProvider };
+    bitget?: { solana?: WalletProvider };
+    solflare?: WalletProvider;
+    backpack?: WalletProvider;
+    solana?: WalletProvider;
+  }
+}
+
+function responseMessage(value: unknown, fallback: string): string {
+  return typeof value === "object" &&
+    value !== null &&
+    "message" in value &&
+    typeof value.message === "string"
+    ? value.message
+    : fallback;
+}
+
+async function postJson(
+  url: string,
+  body: Record<string, string>,
+  fallback: string
+): Promise<unknown> {
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const payload: unknown = await response.json();
+
+  if (!response.ok) {
+    throw new Error(responseMessage(payload, fallback));
+  }
+
+  return payload;
+}
+
+function isWalletChallenge(
+  value: unknown
+): value is { data: { challengeId: string; message: string } } {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "data" in value &&
+    typeof value.data === "object" &&
+    value.data !== null &&
+    "challengeId" in value.data &&
+    typeof value.data.challengeId === "string" &&
+    "message" in value.data &&
+    typeof value.data.message === "string"
+  );
+}
+
+function walletOptions(): WalletOption[] {
+  const options: WalletOption[] = [];
+  const add = (name: string, provider: WalletProvider | undefined) => {
+    if (
+      provider &&
+      typeof provider.connect === "function" &&
+      typeof provider.signMessage === "function" &&
+      !options.some((option) => option.provider === provider)
+    ) {
+      options.push({ name, provider });
+    }
+  };
+
+  add("Phantom", window.phantom?.solana);
+  add("Bitget Wallet", window.bitkeep?.solana);
+  add("Bitget Wallet", window.bitget?.solana);
+  add("Solflare", window.solflare);
+  add("Backpack", window.backpack);
+  add("Solana wallet", window.solana);
+
+  return options;
+}
+
+function readWalletAddress(publicKey: WalletPublicKey | undefined): string {
+  if (!publicKey) {
+    throw new Error("Your wallet did not provide a public address.");
+  }
+
+  return publicKey.toBase58?.() ?? publicKey.toString();
+}
+
+function encodeSignature(signature: Uint8Array): string {
+  if (signature.length !== 64) {
+    throw new Error("Your wallet returned an invalid signature.");
+  }
+
+  return window.btoa(
+    Array.from(signature, (byte) => String.fromCharCode(byte)).join("")
+  );
+}
 
 export default function WalletSettings() {
   const [wallet, setWallet] = useState<LinkedWallet>({
     address: null,
     verifiedAt: null,
   });
-  const [address, setAddress] = useState("");
-  const [challenge, setChallenge] = useState<WalletChallenge | null>(null);
+  const [wallets, setWallets] = useState<WalletOption[]>([]);
   const [editingWallet, setEditingWallet] = useState(false);
-  const [signature, setSignature] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
 
@@ -57,6 +165,10 @@ export default function WalletSettings() {
 
   useEffect(() => {
     const controller = new AbortController();
+    const walletDetection = window.setTimeout(
+      () => setWallets(walletOptions()),
+      0
+    );
 
     void loadWallet(controller.signal)
       .then(setWallet)
@@ -70,105 +182,81 @@ export default function WalletSettings() {
         }
       });
 
-    return () => controller.abort();
+    return () => {
+      controller.abort();
+      window.clearTimeout(walletDetection);
+    };
   }, []);
 
-  async function createChallenge() {
-    setBusy(true);
-    setMessage("");
-
-    try {
-      const response = await fetch("/api/account/wallet/challenge", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ address }),
-      });
-      const payload: unknown = await response.json();
-
-      if (
-        !response.ok ||
-        typeof payload !== "object" ||
-        payload === null ||
-        !("data" in payload) ||
-        typeof payload.data !== "object" ||
-        payload.data === null ||
-        !("challengeId" in payload.data) ||
-        typeof payload.data.challengeId !== "string" ||
-        !("message" in payload.data) ||
-        typeof payload.data.message !== "string"
-      ) {
-        const errorMessage =
-          typeof payload === "object" &&
-          payload !== null &&
-          "message" in payload &&
-          typeof payload.message === "string"
-            ? payload.message
-            : "Unable to start wallet verification.";
-        throw new Error(errorMessage);
-      }
-
-      setChallenge({
-        challengeId: payload.data.challengeId,
-        message: payload.data.message,
-      });
-    } catch (error) {
-      setMessage(
-        error instanceof Error
-          ? error.message
-          : "Unable to start wallet verification."
-      );
-    } finally {
-      setBusy(false);
-    }
+  function openInPhantom() {
+    const phantomUrl = new URL(
+      `https://phantom.com/ul/browse/${encodeURIComponent(window.location.href)}`
+    );
+    phantomUrl.searchParams.set("ref", window.location.origin);
+    window.location.assign(phantomUrl);
   }
 
-  async function verifyWallet() {
-    if (!challenge) {
-      return;
-    }
-
+  async function connectAndLink(option: WalletOption) {
     setBusy(true);
     setMessage("");
 
     try {
-      const response = await fetch("/api/account/wallet/verify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          challengeId: challenge.challengeId,
-          signature,
-        }),
-      });
-      const payload: unknown = await response.json();
+      const connected = await option.provider.connect();
+      const address = readWalletAddress(
+        connected?.publicKey ?? option.provider.publicKey
+      );
+      const challengePayload = await postJson(
+        "/api/account/wallet/challenge",
+        { address },
+        "Unable to start wallet verification."
+      );
 
-      if (
-        !response.ok ||
-        typeof payload !== "object" ||
-        payload === null ||
-        !("message" in payload) ||
-        typeof payload.message !== "string"
-      ) {
-        const errorMessage =
-          typeof payload === "object" &&
-          payload !== null &&
-          "message" in payload &&
-          typeof payload.message === "string"
-            ? payload.message
-            : "Unable to verify wallet ownership.";
-        throw new Error(errorMessage);
+      if (!isWalletChallenge(challengePayload)) {
+        throw new Error("The wallet verification challenge was invalid.");
       }
 
-      setMessage(payload.message);
-      setChallenge(null);
-      setSignature("");
-      setAddress("");
-      setEditingWallet(false);
+      const signMessage = option.provider.signMessage;
+      if (!signMessage) {
+        throw new Error(
+          "This wallet does not support message signing. Try another Solana wallet."
+        );
+      }
+
+      const result = await signMessage(
+        new TextEncoder().encode(challengePayload.data.message),
+        "utf8"
+      );
+      const signature = result instanceof Uint8Array ? result : result.signature;
+      const verifyPayload = await postJson(
+        "/api/account/wallet/verify",
+        {
+          challengeId: challengePayload.data.challengeId,
+          signature: encodeSignature(signature),
+        },
+        "Unable to verify wallet ownership."
+      );
+
+      if (
+        typeof verifyPayload !== "object" ||
+        verifyPayload === null ||
+        !("success" in verifyPayload) ||
+        verifyPayload.success !== true
+      ) {
+        throw new Error(
+          responseMessage(verifyPayload, "Unable to verify wallet ownership.")
+        );
+      }
+
+      setMessage(
+        responseMessage(verifyPayload, "Solana wallet ownership verified")
+      );
       setWallet(await loadWallet());
+      setEditingWallet(false);
     } catch (error) {
       setMessage(
         error instanceof Error
           ? error.message
-          : "Unable to verify wallet ownership."
+          : "Unable to connect and verify this wallet."
       );
     } finally {
       setBusy(false);
@@ -179,7 +267,8 @@ export default function WalletSettings() {
     <section className="mt-8 rounded-2xl border border-zinc-700 bg-zinc-900 p-6 text-white shadow-sm">
       <h2 className="text-xl font-semibold tracking-tight">Solana wallet</h2>
       <p className="mt-1 text-sm text-zinc-300">
-        A wallet is linked only after its owner signs a one-time BHID message.
+        Connect a compatible wallet and approve a one-time BHID message inside
+        the wallet. Your signature is verified without asking you to copy it.
         The address is private profile data and is not sent to OAuth clients.
       </p>
       {wallet.address && !editingWallet ? (
@@ -202,29 +291,20 @@ export default function WalletSettings() {
           </button>
         </div>
       ) : (
-        <>
-          <div className="mt-5">
-            <label className="block text-sm font-medium" htmlFor="wallet-address">
-              Solana address
-            </label>
-            <input
-              autoComplete="off"
-              className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 font-mono text-sm text-white"
-              id="wallet-address"
-              onChange={(event) => setAddress(event.target.value.trim())}
-              value={address}
-            />
-          </div>
-          {!challenge ? (
-            <div className="mt-4 flex flex-wrap gap-3">
-              <button
-                className="rounded-lg bg-white px-4 py-2 text-sm font-medium text-zinc-950 disabled:opacity-50"
-                disabled={busy || !address}
-                onClick={() => void createChallenge()}
-                type="button"
-              >
-                Create signed-message challenge
-              </button>
+        <div className="mt-5 space-y-4">
+          {wallets.length > 0 ? (
+            <div className="flex flex-wrap gap-3">
+              {wallets.map((option) => (
+                <button
+                  className="rounded-lg bg-white px-4 py-2 text-sm font-medium text-zinc-950 disabled:opacity-50"
+                  disabled={busy}
+                  key={option.name}
+                  onClick={() => void connectAndLink(option)}
+                  type="button"
+                >
+                  {busy ? "Waiting for wallet…" : `Connect ${option.name}`}
+                </button>
+              ))}
               {wallet.address && (
                 <button
                   className="rounded-lg border border-zinc-600 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800"
@@ -236,35 +316,22 @@ export default function WalletSettings() {
               )}
             </div>
           ) : (
-            <div className="mt-5 space-y-4">
-              <p className="text-sm text-zinc-200">
-                Sign this exact message with your Solana wallet and paste the
-                resulting base58 or base64 signature. The challenge expires in five
-                minutes.
+            <div className="rounded-lg border border-zinc-700 bg-zinc-950 p-4 text-sm text-zinc-300">
+              <p>
+                No compatible wallet was detected. For Phantom, open this page
+                in the Phantom app. For Bitget Wallet or another Solana wallet,
+                open BHID in that wallet&apos;s DApp browser.
               </p>
-              <pre className="overflow-x-auto whitespace-pre-wrap break-all rounded-lg bg-zinc-950 p-3 text-xs text-zinc-200">
-                {challenge.message}
-              </pre>
-              <label className="block text-sm font-medium" htmlFor="wallet-signature">
-                Wallet signature (base58 or base64)
-              </label>
-              <textarea
-                className="min-h-20 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 font-mono text-sm text-white"
-                id="wallet-signature"
-                onChange={(event) => setSignature(event.target.value.trim())}
-                value={signature}
-              />
               <button
-                className="rounded-lg bg-white px-4 py-2 text-sm font-medium text-zinc-950 disabled:opacity-50"
-                disabled={busy || !signature}
-                onClick={() => void verifyWallet()}
+                className="mt-3 inline-block font-medium text-white underline"
+                onClick={openInPhantom}
                 type="button"
               >
-                Verify and link wallet
+                Open BHID in Phantom
               </button>
             </div>
           )}
-        </>
+        </div>
       )}
       {message && (
         <p aria-live="polite" className="mt-4 text-sm text-zinc-200" role="status">

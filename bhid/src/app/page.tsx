@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { cookies } from "next/headers";
+import { connection } from "next/server";
 import { Suspense } from "react";
 
 import SignOutButton from "@/components/sign-out-button";
@@ -239,6 +240,7 @@ function Brand({ linked }: { linked: boolean }) {
 }
 
 async function HomeHeader() {
+  await connection();
   const accessToken = (await cookies()).get("bhid_access")?.value;
   const session = await getAuthenticatedSession(accessToken);
 
@@ -298,6 +300,7 @@ async function HomeHeader() {
 }
 
 async function HomeActions() {
+  await connection();
   const accessToken = (await cookies()).get("bhid_access")?.value;
   const session = await getAuthenticatedSession(accessToken);
 
@@ -331,6 +334,7 @@ async function HomeActions() {
 }
 
 async function FooterAccountLink() {
+  await connection();
   const accessToken = (await cookies()).get("bhid_access")?.value;
   const session = await getAuthenticatedSession(accessToken);
 
