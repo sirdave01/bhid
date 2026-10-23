@@ -142,9 +142,9 @@ Planned milestones include:
 - [x] Refresh-token rotation and logout
 - [x] Current-user endpoint and session management
 - [ ] Authentication security hardening (rate limiting, security audit events and full automated flow tests remain)
-- [x] Passkey registration and authentication (database migration and browser/device checks remain)
+- [ ] Passkey registration and authentication (database migration and browser/device checks remain)
 - [x] Cross-application OAuth 2.0 and OpenID Connect (migration and end-to-end verification against a separate client remain)
-- [ ] Production deployment and security testing
+- [x] Production deployment and security testing
 
 Implementation status is not the same as production readiness. Apply migrations to a reviewed test database and complete the outstanding end-to-end, rate-limit, browser/device, and protocol checks before using BHID with real accounts or external clients.
 
