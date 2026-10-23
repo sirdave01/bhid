@@ -34,13 +34,23 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.RESEND_FROM_EMAIL;
+  const apiKey = process.env.RESEND_API_KEY?.trim();
+  const from = process.env.RESEND_FROM_EMAIL?.trim();
   const replyTo = process.env.EMAIL_REPLY_TO?.trim();
-  if (!apiKey || !from) {
-    console.error("Password recovery email is not configured");
+  const missingEmailConfiguration = [
+    !apiKey && "RESEND_API_KEY",
+    !from && "RESEND_FROM_EMAIL",
+  ].filter((name): name is string => Boolean(name));
+  if (missingEmailConfiguration.length > 0) {
+    console.error(
+      "Password recovery email is not configured. Missing:",
+      missingEmailConfiguration.join(", ")
+    );
     return NextResponse.json(
-      { success: false, message: "Password recovery email is not configured" },
+      {
+        success: false,
+        message: `Password recovery email is not configured. Set ${missingEmailConfiguration.join(" and ")} in the production environment.`,
+      },
       { status: 503 }
     );
   }
