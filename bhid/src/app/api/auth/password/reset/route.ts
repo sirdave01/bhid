@@ -92,16 +92,7 @@ export async function POST(request: NextRequest) {
     const emailCodeIsValid =
       storedCodeHash.length === submittedCodeHash.length &&
       timingSafeEqual(storedCodeHash, submittedCodeHash);
-    const matchedStep = matchTotpCounter(
-      decryptTotpSecret(challenge.secret_encrypted),
-      parsed.data.totpCode
-    );
-    const totpCodeIsValid =
-      matchedStep !== null &&
-      (challenge.last_used_step === null ||
-        matchedStep > BigInt(challenge.last_used_step));
-
-    if (!emailCodeIsValid || !totpCodeIsValid || matchedStep === null) {
+    if (!emailCodeIsValid) {
       await client.query(
         `UPDATE password_reset_challenges
          SET attempts = attempts + 1,
@@ -112,6 +103,39 @@ export async function POST(request: NextRequest) {
       await client.query("COMMIT");
       transactionOpen = false;
       return invalidChallenge();
+    }
+
+    const matchedStep = matchTotpCounter(
+      decryptTotpSecret(challenge.secret_encrypted),
+      parsed.data.totpCode
+    );
+    if (matchedStep === null) {
+      await client.query(
+        `UPDATE password_reset_challenges
+         SET attempts = attempts + 1,
+             used_at = CASE WHEN attempts + 1 >= 5 THEN NOW() ELSE used_at END
+         WHERE id = $1`,
+        [challenge.id]
+      );
+      await client.query("COMMIT");
+      transactionOpen = false;
+      return invalidChallenge();
+    }
+
+    if (
+      challenge.last_used_step !== null &&
+      matchedStep <= BigInt(challenge.last_used_step)
+    ) {
+      await client.query("COMMIT");
+      transactionOpen = false;
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "That authenticator code was already used. Wait for a new code and try again.",
+        },
+        { status: 409 }
+      );
     }
 
     const passwordHash = await hashPassword(parsed.data.password);

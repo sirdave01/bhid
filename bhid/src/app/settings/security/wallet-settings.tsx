@@ -88,15 +88,17 @@ function walletOptions(): WalletOption[] {
       provider &&
       typeof provider.connect === "function" &&
       typeof provider.signMessage === "function" &&
-      !options.some((option) => option.provider === provider)
+      !options.some(
+        (option) => option.name === name || option.provider === provider
+      )
     ) {
       options.push({ name, provider });
     }
   };
 
   add("Phantom", window.phantom?.solana);
-  add("Bitget Wallet", window.bitkeep?.solana);
   add("Bitget Wallet", window.bitget?.solana);
+  add("Bitget Wallet", window.bitkeep?.solana);
   add("Solflare", window.solflare);
   add("Backpack", window.backpack);
   add("Solana wallet", window.solana);
@@ -205,6 +207,11 @@ export default function WalletSettings() {
       const address = readWalletAddress(
         connected?.publicKey ?? option.provider.publicKey
       );
+      if (/^0x[a-fA-F0-9]{40}$/.test(address)) {
+        throw new Error(
+          "Bitget Wallet is connected to Ethereum. Switch to Solana Mainnet in Bitget Wallet and try again."
+        );
+      }
       const challengePayload = await postJson(
         "/api/account/wallet/challenge",
         { address },

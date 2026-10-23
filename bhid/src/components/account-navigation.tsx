@@ -2,12 +2,37 @@ import { cookies } from "next/headers";
 import Image from "next/image";
 import Link from "next/link";
 import { connection } from "next/server";
+import { Suspense } from "react";
 
 import SignOutButton from "@/components/sign-out-button";
 import { isFounderAccount } from "@/lib/founder-access";
 import { getAuthenticatedSession } from "@/lib/session";
 
-export default async function AccountNavigation() {
+export default function AccountNavigation() {
+  return (
+    <Suspense
+      fallback={
+        <nav
+          aria-label="Account navigation"
+          className="flex min-h-14 items-center border-b border-zinc-800 pb-4"
+        >
+          <Image
+            alt="BHID"
+            className="h-10 w-10 rounded-lg"
+            height={40}
+            src="/icon.png"
+            width={40}
+          />
+          <span className="sr-only">Loading account navigation</span>
+        </nav>
+      }
+    >
+      <AccountNavigationContent />
+    </Suspense>
+  );
+}
+
+async function AccountNavigationContent() {
   await connection();
   const accessToken = (await cookies()).get("bhid_access")?.value;
   const session = await getAuthenticatedSession(accessToken);

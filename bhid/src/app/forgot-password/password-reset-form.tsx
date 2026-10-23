@@ -208,6 +208,10 @@ export default function PasswordResetForm() {
         <label className="block text-sm font-medium" htmlFor="reset-totp">
           Authenticator-app code
         </label>
+        <p className="mt-1 text-xs text-zinc-400">
+          Use a fresh code. BHID won&apos;t accept an authenticator code that
+          was already used for another security action.
+        </p>
         <input
           autoComplete="one-time-code"
           className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2.5 text-white"
