@@ -252,38 +252,65 @@ export default function ProfileSettings() {
             value={profile.bio}
           />
         </div>
-        <div className="space-y-3">
-          <p className="text-sm font-medium">Profile picture</p>
-          {profile.avatarUrl && (
-            <Image
-              alt="Current profile picture"
-              className="h-20 w-20 rounded-full object-cover"
-              height={80}
-              src={profile.avatarUrl}
-              unoptimized
-              width={80}
-            />
-          )}
+
+        {/* ===== Profile picture section ===== */}
+<div className="space-y-3">
+  <p className="text-sm font-medium">Profile picture</p>
+
+  {/* Current or newly selected preview */}
+      {(profile.avatarUrl || avatarFile) && (
+        <div className="flex items-center gap-4">
+          <Image
+            alt="Profile picture preview"
+            className="h-20 w-20 rounded-full object-cover border border-zinc-600"
+            height={80}
+            width={80}
+            unoptimized
+            src={
+              avatarFile
+                ? URL.createObjectURL(avatarFile)
+                : profile.avatarUrl
+            }
+                />
+                {avatarFile && (
+                  <p className="text-xs text-zinc-400">
+                    Selected: {avatarFile.name} ({Math.round(avatarFile.size / 1024)} KB)
+                  </p>
+                )}
+              </div>
+            )}
+
           <input
             accept="image/jpeg,image/png,image/webp"
             className="block w-full text-sm text-zinc-300 file:mr-3 file:rounded-lg file:border-0 file:bg-white file:px-3 file:py-2 file:text-sm file:font-medium file:text-zinc-950"
             id="profile-avatar"
-            onChange={(event) => setAvatarFile(event.target.files?.[0] ?? null)}
-            ref={avatarInput}
             type="file"
+            ref={avatarInput}
+            onChange={(event) => {
+            const file = event.target.files?.[0] ?? null;
+              console.log("File selected:", file); // temporary debug
+              setAvatarFile(file);
+              setMessage(file ? `Ready to upload: ${file.name}` : "");
+            }}
           />
+
           <p className="text-xs text-zinc-400">
             JPEG, PNG, or WebP; maximum file size 5 MB.
           </p>
+
           <button
+            type="button"
             className="rounded-lg border border-zinc-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
             disabled={!avatarFile || uploadingAvatar || saving}
-            onClick={() => void uploadAvatar()}
-            type="button"
+            onClick={() => {
+              console.log("Upload clicked. avatarFile =", avatarFile); // temporary debug
+              void uploadAvatar();
+            }}
           >
             {uploadingAvatar ? "Uploading picture…" : "Upload picture"}
           </button>
         </div>
+
         <div>
           <label className="block text-sm font-medium" htmlFor="profile-dob">
             Date of birth
