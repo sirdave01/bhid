@@ -5,6 +5,7 @@ import {
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
+import { awsCredentialsProvider } from "@vercel/functions/oidc";
 
 type S3Configuration = {
   bucket: string;
@@ -24,12 +25,14 @@ let clientRegion: string | undefined;
 
 export function getS3Configuration(): S3Configuration {
   const region = process.env.AWS_REGION?.trim();
-  const bucket = process.env.S3_BUCKET_NAME?.trim();
+  // Support both names so local + Vercel both work
+  const bucket =
+    process.env.S3_BUCKET_NAME?.trim();
   const publicBaseUrl = process.env.AWS_S3_PUBLIC_BASE_URL?.trim();
 
   if (!region || !bucket || !publicBaseUrl) {
     throw new S3ConfigurationError(
-      "AWS_REGION, S3_BUCKET_NAME, and AWS_S3_PUBLIC_BASE_URL must be configured"
+      "AWS_REGION, S3_BUCKET_NAME (or AWS_S3_BUCKET), and AWS_S3_PUBLIC_BASE_URL must be configured"
     );
   }
 
@@ -69,7 +72,21 @@ export function getS3Configuration(): S3Configuration {
 
 function getS3Client(region: string): S3Client {
   if (!client || clientRegion !== region) {
-    client = new S3Client({ region });
+    const roleArn = process.env.AWS_ROLE_ARN?.trim();
+
+    // On Vercel we use OIDC. Locally we fall back to the default
+    // credential chain (env keys, shared credentials file, etc.).
+    client = new S3Client({
+      region,
+      ...(roleArn
+        ? {
+            credentials: awsCredentialsProvider({
+              roleArn,
+            }),
+          }
+        : {}),
+    });
+
     clientRegion = region;
   }
 
