@@ -1,7 +1,15 @@
+
 "use client";
 
-import Image from "next/image";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type FormEvent,
+} from "react";
+
+import AccountAvatar from "@/components/account-avatar";
 
 type Profile = {
   displayName: string;
@@ -19,32 +27,82 @@ const emptyProfile: Profile = {
   dateOfBirth: "",
 };
 
+const MAX_AVATAR_SIZE = 5 * 1024 * 1024;
+
+const ALLOWED_IMAGE_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+];
+
+function getResponseMessage(
+  payload: unknown,
+  fallback: string
+): string {
+  if (
+    typeof payload === "object" &&
+    payload !== null &&
+    "message" in payload &&
+    typeof payload.message === "string"
+  ) {
+    return payload.message;
+  }
+
+  return fallback;
+}
+
+function getResponseData(payload: unknown): Record<string, unknown> | null {
+  if (
+    typeof payload === "object" &&
+    payload !== null &&
+    "data" in payload &&
+    typeof payload.data === "object" &&
+    payload.data !== null
+  ) {
+    return payload.data as Record<string, unknown>;
+  }
+
+  return null;
+}
+
+function getString(value: unknown): string {
+  return typeof value === "string" ? value : "";
+}
+
 export default function ProfileSettings() {
-  const [profile, setProfile] = useState(emptyProfile);
+  const [profile, setProfile] = useState<Profile>(emptyProfile);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
   const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+
   const avatarInput = useRef<HTMLInputElement>(null);
 
-  function getResponseMessage(payload: unknown, fallback: string): string {
-    return typeof payload === "object" &&
-      payload !== null &&
-      "message" in payload &&
-      typeof payload.message === "string"
-      ? payload.message
-      : fallback;
-  }
+  // Release temporary preview URLs when they are replaced or removed.
+  useEffect(() => {
+    return () => {
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [previewUrl]);
 
+  // Load the BHID profile.
   useEffect(() => {
     const controller = new AbortController();
 
-    void fetch("/api/account/profile", {
-      cache: "no-store",
-      signal: controller.signal,
-    })
-      .then(async (response) => {
+    async function loadProfile() {
+      try {
+        const response = await fetch("/api/account/profile", {
+          cache: "no-store",
+          signal: controller.signal,
+        });
+
         const payload: unknown = await response.json();
 
         if (!response.ok) {
@@ -52,148 +110,163 @@ export default function ProfileSettings() {
             getResponseMessage(
               payload,
               response.status === 401
-                ? "Sign in to manage your profile."
-                : "Unable to load profile data."
+                ? "Please sign in to manage your profile."
+                : "Unable to load profile."
             )
           );
         }
 
-        if (
-          typeof payload !== "object" ||
-          payload === null ||
-          !("data" in payload) ||
-          typeof payload.data !== "object" ||
-          payload.data === null
-        ) {
-          throw new Error("Unable to load profile data.");
+        const data = getResponseData(payload);
+
+        if (!data) {
+          throw new Error("Invalid profile response.");
         }
 
-        const data = payload.data;
-        const values: Profile = {
-          displayName:
-            "displayName" in data && typeof data.displayName === "string"
-              ? data.displayName
-              : "",
-          username:
-            "username" in data && typeof data.username === "string"
-              ? data.username
-              : "",
-          bio: "bio" in data && typeof data.bio === "string" ? data.bio : "",
-          avatarUrl:
-            "avatarUrl" in data && typeof data.avatarUrl === "string"
-              ? data.avatarUrl
-              : "",
-          dateOfBirth:
-            "dateOfBirth" in data && typeof data.dateOfBirth === "string"
-              ? data.dateOfBirth
-              : "",
-        };
-        setProfile(values);
-      })
-      .catch((error: unknown) => {
+        if (controller.signal.aborted) return;
+
+        setProfile({
+          displayName: getString(data.displayName),
+          username: getString(data.username),
+          bio: getString(data.bio),
+          avatarUrl: getString(data.avatarUrl),
+          dateOfBirth: getString(data.dateOfBirth),
+        });
+      } catch (err) {
         if (!controller.signal.aborted) {
-          setMessage(
-            error instanceof Error ? error.message : "Unable to load profile data."
+          setError(
+            err instanceof Error
+              ? err.message
+              : "Unable to load your profile."
           );
         }
-      })
-      .finally(() => {
+      } finally {
         if (!controller.signal.aborted) {
           setLoading(false);
         }
-      });
+      }
+    }
+
+    void loadProfile();
 
     return () => controller.abort();
   }, []);
 
-  async function saveProfile(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setSaving(true);
+  function updateField(
+    field: keyof Profile,
+    value: string
+  ) {
+    setProfile((current) => ({
+      ...current,
+      [field]: value,
+    }));
+  }
+
+  function handleAvatarSelection(
+    event: ChangeEvent<HTMLInputElement>
+  ) {
+    const file = event.target.files?.[0] ?? null;
+
+    setMessage("");
+    setError("");
+
+    if (!file) {
+      setAvatarFile(null);
+      setPreviewUrl(null);
+      return;
+    }
+
+    if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+      setError("Only JPEG, PNG, and WebP images are allowed.");
+      event.target.value = "";
+      return;
+    }
+
+    if (file.size > MAX_AVATAR_SIZE) {
+      setError("Profile pictures must not exceed 5 MB.");
+      event.target.value = "";
+      return;
+    }
+
+    const objectUrl = URL.createObjectURL(file);
+
+    setAvatarFile(file);
+    setPreviewUrl(objectUrl);
+    setMessage(`Ready to upload: ${file.name}`);
+  }
+
+  function cancelAvatarSelection() {
+    if (uploadingAvatar) return;
+
+    setAvatarFile(null);
+    setPreviewUrl(null);
     setMessage("");
 
-    try {
-      const response = await fetch("/api/account/profile", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          displayName: profile.displayName,
-          username: profile.username,
-          bio: profile.bio,
-          dateOfBirth: profile.dateOfBirth,
-        }),
-      });
-      const payload: unknown = await response.json();
-
-      if (
-        typeof payload !== "object" ||
-        payload === null ||
-        !("message" in payload) ||
-        typeof payload.message !== "string"
-      ) {
-        throw new Error("Unable to save profile data.");
-      }
-
-      if (!response.ok) {
-        throw new Error(payload.message);
-      }
-
-      setMessage(payload.message);
-    } catch (error) {
-      setMessage(
-        error instanceof Error ? error.message : "Unable to save profile data."
-      );
-    } finally {
-      setSaving(false);
+    if (avatarInput.current) {
+      avatarInput.current.value = "";
     }
   }
 
   async function uploadAvatar() {
-    if (!avatarFile) {
-      return;
-    }
+    if (!avatarFile || uploadingAvatar) return;
 
     setUploadingAvatar(true);
     setMessage("");
+    setError("");
 
     try {
       const formData = new FormData();
       formData.set("avatar", avatarFile);
-      const response = await fetch("/api/account/profile/avatar", {
-        method: "POST",
-        body: formData,
-      });
+
+      const response = await fetch(
+        "/api/account/profile/avatar",
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
+
       const payload: unknown = await response.json();
 
       if (!response.ok) {
         throw new Error(
-          getResponseMessage(payload, "Unable to upload your profile picture.")
+          getResponseMessage(
+            payload,
+            "Unable to upload your profile picture."
+          )
         );
       }
 
-      const data =
-        typeof payload === "object" &&
-        payload !== null &&
-        "data" in payload &&
-        typeof payload.data === "object" &&
-        payload.data !== null
-          ? payload.data
-          : null;
-      const avatarUrl =
-        data && "avatarUrl" in data ? data.avatarUrl : undefined;
-      if (typeof avatarUrl !== "string") {
-        throw new Error("The uploaded picture could not be loaded.");
+      const data = getResponseData(payload);
+      const newAvatarUrl = data?.avatarUrl;
+
+      if (typeof newAvatarUrl !== "string" || !newAvatarUrl) {
+        throw new Error(
+          "The upload succeeded, but no avatar URL was returned."
+        );
       }
 
-      setProfile((current) => ({ ...current, avatarUrl }));
+      setProfile((current) => ({
+        ...current,
+        avatarUrl: newAvatarUrl,
+      }));
+
       setAvatarFile(null);
+      setPreviewUrl(null);
+
       if (avatarInput.current) {
         avatarInput.current.value = "";
       }
-      setMessage(getResponseMessage(payload, "Profile picture updated"));
-    } catch (error) {
+
       setMessage(
-        error instanceof Error
-          ? error.message
+        getResponseMessage(
+          payload,
+          "Profile picture updated successfully."
+        )
+      );
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
           : "Unable to upload your profile picture."
       );
     } finally {
@@ -201,140 +274,288 @@ export default function ProfileSettings() {
     }
   }
 
-  function updateField(field: keyof Profile, value: string) {
-    setProfile((current) => ({ ...current, [field]: value }));
+  async function saveProfile(
+    event: FormEvent<HTMLFormElement>
+  ) {
+    event.preventDefault();
+
+    setSaving(true);
+    setMessage("");
+    setError("");
+
+    try {
+      const response = await fetch("/api/account/profile", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          displayName: profile.displayName,
+          username: profile.username,
+          bio: profile.bio,
+          dateOfBirth: profile.dateOfBirth,
+        }),
+      });
+
+      const payload: unknown = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          getResponseMessage(payload, "Unable to save your profile.")
+        );
+      }
+
+      setMessage(
+        getResponseMessage(
+          payload,
+          "Profile updated successfully."
+        )
+      );
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Unable to save your profile."
+      );
+    } finally {
+      setSaving(false);
+    }
   }
 
+  const displayedAvatarUrl = previewUrl ?? profile.avatarUrl;
+
   return (
-    <section id="profile" className="mt-8 rounded-2xl border border-zinc-700 bg-zinc-900 p-6 text-white shadow-sm">
-      <h2 className="text-xl font-semibold tracking-tight">Profile</h2>
+    <section
+      id="profile"
+      className="mt-8 rounded-2xl border border-zinc-700 bg-zinc-900 p-6 text-white shadow-sm"
+    >
+      <h2 className="text-xl font-semibold tracking-tight">
+        Profile
+      </h2>
+
       <p className="mt-1 text-sm text-zinc-300">
-        Manage your account details. Your date of birth is private and is never
-        shared with connected applications.
+        Manage your BHID profile and profile picture.
+        Your date of birth is private.
       </p>
-      <form className="mt-6 space-y-4" onSubmit={saveProfile}>
-        <div>
-          <label className="block text-sm font-medium" htmlFor="profile-name">
-            Display name
-          </label>
-          <input
-            autoComplete="name"
-            className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-white"
-            id="profile-name"
-            maxLength={80}
-            onChange={(event) => updateField("displayName", event.target.value)}
-            required
-            value={profile.displayName}
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium" htmlFor="profile-username">
-            Username
-          </label>
-          <input
-            autoComplete="username"
-            className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-white"
-            id="profile-username"
-            maxLength={30}
-            onChange={(event) => updateField("username", event.target.value)}
-            value={profile.username}
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium" htmlFor="profile-bio">
-            Bio
-          </label>
-          <textarea
-            className="mt-1 min-h-24 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-white"
-            id="profile-bio"
-            maxLength={500}
-            onChange={(event) => updateField("bio", event.target.value)}
-            value={profile.bio}
-          />
-        </div>
 
-        {/* ===== Profile picture section ===== */}
-<div className="space-y-3">
-  <p className="text-sm font-medium">Profile picture</p>
+      {/* PROFILE HEADER */}
+      <div className="mt-6 flex flex-wrap items-center gap-5 rounded-xl border border-zinc-700 bg-zinc-950 p-5">
+        <AccountAvatar
+          avatarUrl={displayedAvatarUrl || null}
+          displayName={profile.displayName || "BHID User"}
+          size={112}
+        />
 
-  {/* Current or newly selected preview */}
-      {(profile.avatarUrl || avatarFile) && (
-        <div className="flex items-center gap-4">
-          <Image
-            alt="Profile picture preview"
-            className="h-20 w-20 rounded-full object-cover border border-zinc-600"
-            height={80}
-            width={80}
-            unoptimized
-            src={
-              avatarFile
-                ? URL.createObjectURL(avatarFile)
-                : profile.avatarUrl
-            }
-                />
-                {avatarFile && (
-                  <p className="text-xs text-zinc-400">
-                    Selected: {avatarFile.name} ({Math.round(avatarFile.size / 1024)} KB)
-                  </p>
-                )}
-              </div>
-            )}
+        <div className="min-w-0 flex-1">
+          <h3 className="break-words text-xl font-semibold">
+            {profile.displayName || "BHID User"}
+          </h3>
 
-          <input
-            accept="image/jpeg,image/png,image/webp"
-            className="block w-full text-sm text-zinc-300 file:mr-3 file:rounded-lg file:border-0 file:bg-white file:px-3 file:py-2 file:text-sm file:font-medium file:text-zinc-950"
-            id="profile-avatar"
-            type="file"
-            ref={avatarInput}
-            onChange={(event) => {
-            const file = event.target.files?.[0] ?? null;
-              console.log("File selected:", file); // temporary debug
-              setAvatarFile(file);
-              setMessage(file ? `Ready to upload: ${file.name}` : "");
-            }}
-          />
-
-          <p className="text-xs text-zinc-400">
-            JPEG, PNG, or WebP; maximum file size 5 MB.
+          <p className="mt-1 text-sm text-zinc-400">
+            {profile.username
+              ? `@${profile.username}`
+              : "No username yet"}
           </p>
 
+          <p className="mt-2 text-xs text-zinc-400">
+            {previewUrl
+              ? "Previewing a selected picture. Upload to save it."
+              : "Click your picture to view it in full size."}
+          </p>
+        </div>
+      </div>
+
+      {/* PROFILE PICTURE UPLOAD */}
+      <div className="mt-6 space-y-4 rounded-xl border border-zinc-700 p-4">
+        <h3 className="text-base font-semibold">
+          Profile picture
+        </h3>
+
+        <p className="text-sm text-zinc-400">
+          Your avatar can appear in other ByteHaven applications
+          connected to BHID.
+        </p>
+
+        <label
+          htmlFor="profile-avatar"
+          className="block text-sm font-medium"
+        >
+          Choose a profile picture
+        </label>
+
+        <input
+          ref={avatarInput}
+          id="profile-avatar"
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          disabled={loading || uploadingAvatar}
+          onChange={handleAvatarSelection}
+          className="block w-full text-sm text-zinc-300 file:mr-3 file:rounded-lg file:border-0 file:bg-white file:px-4 file:py-2 file:text-sm file:font-medium file:text-zinc-950 disabled:opacity-50"
+        />
+
+        <p className="text-xs text-zinc-400">
+          Supported formats: JPEG, PNG, WebP. Maximum size: 5 MB.
+        </p>
+
+        {avatarFile && (
+          <div className="rounded-lg bg-zinc-800 p-3">
+            <p className="break-all text-sm text-zinc-200">
+              Selected: {avatarFile.name}
+            </p>
+
+            <p className="mt-1 text-xs text-zinc-400">
+              Size: {(avatarFile.size / 1024).toFixed(1)} KB
+            </p>
+          </div>
+        )}
+
+        <div className="flex flex-wrap gap-3">
           <button
             type="button"
-            className="rounded-lg border border-zinc-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
             disabled={!avatarFile || uploadingAvatar || saving}
-            onClick={() => {
-              console.log("Upload clicked. avatarFile =", avatarFile); // temporary debug
-              void uploadAvatar();
-            }}
+            onClick={() => void uploadAvatar()}
+            className="rounded-lg bg-indigo-600 px-5 py-2 text-sm font-semibold text-white hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {uploadingAvatar ? "Uploading picture…" : "Upload picture"}
+            {uploadingAvatar
+              ? "Uploading picture..."
+              : "Upload picture"}
           </button>
+
+          {avatarFile && (
+            <button
+              type="button"
+              disabled={uploadingAvatar}
+              onClick={cancelAvatarSelection}
+              className="rounded-lg border border-zinc-600 px-5 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-50"
+            >
+              Cancel selection
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* EDITABLE PROFILE INFORMATION */}
+      <form
+        className="mt-6 space-y-5"
+        onSubmit={saveProfile}
+      >
+        <div>
+          <label
+            htmlFor="profile-name"
+            className="block text-sm font-medium"
+          >
+            Display name
+          </label>
+
+          <input
+            id="profile-name"
+            autoComplete="name"
+            required
+            maxLength={80}
+            disabled={loading}
+            value={profile.displayName}
+            onChange={(event) =>
+              updateField("displayName", event.target.value)
+            }
+            className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-white"
+          />
         </div>
 
         <div>
-          <label className="block text-sm font-medium" htmlFor="profile-dob">
-            Date of birth
+          <label
+            htmlFor="profile-username"
+            className="block text-sm font-medium"
+          >
+            Username
           </label>
+
           <input
-            autoComplete="bday"
+            id="profile-username"
+            autoComplete="username"
+            maxLength={30}
+            disabled={loading}
+            value={profile.username}
+            onChange={(event) =>
+              updateField("username", event.target.value)
+            }
             className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-white"
-            id="profile-dob"
-            onChange={(event) => updateField("dateOfBirth", event.target.value)}
-            type="date"
-            value={profile.dateOfBirth}
           />
         </div>
+
+        <div>
+          <label
+            htmlFor="profile-bio"
+            className="block text-sm font-medium"
+          >
+            Biography
+          </label>
+
+          <textarea
+            id="profile-bio"
+            maxLength={500}
+            disabled={loading}
+            value={profile.bio}
+            onChange={(event) =>
+              updateField("bio", event.target.value)
+            }
+            className="mt-1 min-h-28 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-white"
+          />
+        </div>
+
+        <div>
+          <label
+            htmlFor="profile-dob"
+            className="block text-sm font-medium"
+          >
+            Date of birth
+          </label>
+
+          <input
+            id="profile-dob"
+            type="date"
+            autoComplete="bday"
+            disabled={loading}
+            value={profile.dateOfBirth}
+            onChange={(event) =>
+              updateField("dateOfBirth", event.target.value)
+            }
+            className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-white"
+          />
+
+          <p className="mt-1 text-xs text-zinc-400">
+            Private account information.
+          </p>
+        </div>
+
         {message && (
-          <p aria-live="polite" className="text-sm text-zinc-200" role="status">
+          <p
+            role="status"
+            aria-live="polite"
+            className="rounded-lg border border-emerald-800 bg-emerald-950/40 p-3 text-sm text-emerald-300"
+          >
             {message}
           </p>
         )}
+
+        {error && (
+          <p
+            role="alert"
+            className="rounded-lg border border-red-800 bg-red-950/40 p-3 text-sm text-red-300"
+          >
+            {error}
+          </p>
+        )}
+
         <button
-          className="rounded-lg bg-white px-4 py-2 text-sm font-medium text-zinc-950 disabled:opacity-50"
-          disabled={loading || saving || uploadingAvatar}
           type="submit"
+          disabled={loading || saving || uploadingAvatar}
+          className="rounded-lg bg-white px-5 py-2 text-sm font-semibold text-zinc-950 hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {loading ? "Loading profile…" : saving ? "Saving…" : "Save profile"}
+          {loading
+            ? "Loading profile..."
+            : saving
+              ? "Saving..."
+              : "Save profile"}
         </button>
       </form>
     </section>
