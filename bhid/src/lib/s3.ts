@@ -26,7 +26,8 @@ let clientRegion: string | undefined;
 export function getS3Configuration(): S3Configuration {
   const region = process.env.AWS_REGION?.trim();
   const bucket =
-    process.env.S3_BUCKET_NAME?.trim();
+    process.env.S3_BUCKET_NAME?.trim() ||
+    process.env.AWS_S3_BUCKET?.trim();
   const publicBaseUrl = process.env.AWS_S3_PUBLIC_BASE_URL?.trim();
 
   if (!region || !bucket || !publicBaseUrl) {
