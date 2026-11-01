@@ -186,7 +186,8 @@ export async function POST(request: NextRequest) {
            ar.state,
            ar.nonce,
            ar.code_challenge,
-           app.redirect_uris
+           app.redirect_uris,
+           app.allowed_scopes
          FROM oauth_authorization_requests AS ar
          JOIN applications AS app
            ON app.id = ar.application_id
@@ -210,6 +211,20 @@ export async function POST(request: NextRequest) {
 
       // The pending request is single-use and bound to the same authenticated session.
       if (!authorizationRequest) {
+        await client.query("ROLLBACK");
+        transactionOpen = false;
+        return invalidRequest();
+      }
+
+      const supportedScopes = new Set(["openid", "email", "profile", "bhid"]);
+      if (
+        authorizationRequest.scopes.some(
+          (scope: string) =>
+            !supportedScopes.has(scope) ||
+            (scope !== "openid" &&
+              !(authorizationRequest.allowed_scopes ?? []).includes(scope))
+        )
+      ) {
         await client.query("ROLLBACK");
         transactionOpen = false;
         return invalidRequest();

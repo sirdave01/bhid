@@ -286,7 +286,8 @@ export async function POST(request: NextRequest) {
          ac.redirect_uri,
          ac.scopes,
          ac.code_challenge,
-         ac.nonce
+         ac.nonce,
+         app.allowed_scopes
        FROM oauth_authorization_codes AS ac
        JOIN applications AS app
          ON app.id = ac.application_id
@@ -303,8 +304,19 @@ export async function POST(request: NextRequest) {
     const authorizationCode = codeResult.rows[0];
 
     // Locking the stored code makes redemption one-time even under concurrent requests.
+    const supportedScopes = new Set(["openid", "email", "profile", "bhid"]);
+    const scopesAllowedNow =
+      authorizationCode &&
+      authorizationCode.scopes.every(
+        (scope: string) =>
+          supportedScopes.has(scope) &&
+          (scope === "openid" ||
+            (authorizationCode.allowed_scopes ?? []).includes(scope))
+      );
+
     if (
       !authorizationCode ||
+      !scopesAllowedNow ||
       !verifyPkce(verifier, authorizationCode.code_challenge)
     ) {
       await client.query("ROLLBACK");

@@ -102,7 +102,7 @@ The provider accepts only the `authorization_code` grant and `S256` PKCE. Author
 
 Public browser clients may exchange codes from an origin represented by one of their registered HTTPS redirect URIs (loopback HTTP is permitted for development). The token endpoint returns an exact-origin CORS header only for that registered public-client origin; it does not enable credentialed CORS or wildcard origins.
 
-The existing `applications` table is the trusted client registry. Provision clients through a controlled database/admin workflow; do not expose an unauthenticated public client-registration endpoint. Redirect URIs are compared exactly to the registered list. Production web redirects must use HTTPS; HTTP is accepted only for loopback development clients. A migration adds short-lived, one-use authorization requests and codes plus remembered user consent:
+The existing `applications` table is the trusted client registry. Provision clients through the controlled CLI below; BHID deliberately has no public client-registration endpoint. Redirect URIs are compared exactly to the registered list. Production web redirects must use HTTPS; HTTP is accepted only for loopback development clients. A migration adds short-lived, one-use authorization requests and codes plus remembered user consent:
 
 ```powershell
 psql "$env:DATABASE_URL" -v ON_ERROR_STOP=1 -f .\database\migrations\001_oauth_authorization.sql
@@ -110,9 +110,17 @@ psql "$env:DATABASE_URL" -v ON_ERROR_STOP=1 -f .\database\migrations\001_oauth_a
 
 Review the target database and take the usual backup before applying migrations. The migration is not run by the application or build.
 
+After migration, register HavenSocial from the BHID project directory with its exact deployed callback URI. Choose `confidential` only when HavenSocial exchanges codes on its server; use `public` for a browser-only client. Repeat `--redirect-uri` for every required callback (including separate development callbacks when needed):
+
+```powershell
+npm run oauth:register-client -- --name HavenSocial --slug havensocial --type confidential --redirect-uri https://HAVENSOCIAL_HOST/EXACT_OIDC_CALLBACK
+```
+
+The command inserts an active client, generates a random client ID, and for confidential clients generates a one-time secret. BHID stores only the SHA-256 hash of that secret. If `--scopes` is omitted, the client is allowed `email` and `profile` in addition to the required `openid`; add `bhid` only if HavenSocial needs the separate BHID identifier claim. Save the displayed secret immediately in HavenSocial's server-side secret manager; never put it in browser code or source control. The registration command is create-only: duplicate slugs/client IDs fail rather than silently rotating or changing an existing client. The callback value above is a placeholder and must be replaced with HavenSocial's actual callback before running the command.
+
 OIDC tokens use RS256, the configured `JWT_ISSUER`, the application's `client_id` as audience, and a 10-minute lifetime. Authorization codes are stored only as SHA-256 hashes and expire after five minutes. The provider does not issue OAuth refresh tokens; `bhid_refresh` remains the first-party browser-session cookie. Applications that verify JWTs locally should use the JWKS endpoint and validate issuer, audience, expiry, and signature. Local signature validation cannot immediately observe revocation; use the UserInfo endpoint or short access-token lifetime when current session status must be checked.
 
-These routes are an initial provider implementation, not a claim of production certification. Apply the migration and run the end-to-end OIDC flow against a provisioned test application before enabling external clients. Client administration, consent revocation UI, rate limiting, key rotation, and protocol/security review remain operational follow-ups.
+These routes are an initial provider implementation, not a claim of production certification. Apply the migration and run the end-to-end OIDC flow against a provisioned test application before enabling external clients. Consent revocation UI, rate limiting, key rotation, and independent protocol/security review remain operational follow-ups.
 
 ## Security Principles
 

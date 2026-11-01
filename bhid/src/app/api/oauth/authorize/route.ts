@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import pool from "@/lib/db";
+import { getAppBaseUrl } from "@/lib/app-base-url";
 import {
   type ActiveBhidSession,
   findActiveBhidSession,
@@ -155,9 +156,12 @@ function readAuthorizationRequest(request: NextRequest) {
 
 function redirectToLogin(request: NextRequest) {
   const continueTo = `${request.nextUrl.pathname}${request.nextUrl.search}`;
-  const loginUrl = new URL("/login", request.url);
+  const loginUrl = new URL("/login", getAppBaseUrl());
   loginUrl.searchParams.set("continue", continueTo);
-  return NextResponse.redirect(loginUrl, { status: 303 });
+  const response = NextResponse.redirect(loginUrl, { status: 303 });
+  response.headers.set("Cache-Control", "no-store");
+  response.headers.set("Referrer-Policy", "no-referrer");
+  return response;
 }
 
 async function issueAuthorizationCode(
@@ -259,16 +263,18 @@ export async function GET(request: NextRequest) {
     }
 
     const scopes = params.scope.split(/\s+/).filter(Boolean);
-    const permittedScopes = new Set([
-      "openid",
-      ...(application.allowed_scopes ?? []),
-    ]);
+    const supportedScopes = new Set(["openid", "email", "profile", "bhid"]);
 
     if (
       !scopes.includes("openid") ||
       new Set(scopes).size !== scopes.length ||
       scopes.some((scope) => !/^[\x21\x23-\x5B\x5D-\x7E]+$/.test(scope)) ||
-      scopes.some((scope) => !permittedScopes.has(scope))
+      scopes.some(
+        (scope) =>
+          !supportedScopes.has(scope) ||
+          (scope !== "openid" &&
+            !(application.allowed_scopes ?? []).includes(scope))
+      )
     ) {
       return redirectWithError(params.redirect_uri, params.state, "invalid_scope");
     }
@@ -349,7 +355,7 @@ export async function GET(request: NextRequest) {
         ]
       );
 
-      const consentUrl = new URL("/oauth/consent", request.url);
+      const consentUrl = new URL("/oauth/consent", getAppBaseUrl());
       consentUrl.searchParams.set(
         "request_id",
         pendingResult.rows[0].id

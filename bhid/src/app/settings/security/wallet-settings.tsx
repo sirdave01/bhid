@@ -209,7 +209,7 @@ export default function WalletSettings() {
       );
       if (/^0x[a-fA-F0-9]{40}$/.test(address)) {
         throw new Error(
-          "Bitget Wallet is connected to Ethereum. Switch to Solana Mainnet in Bitget Wallet and try again."
+          "The connected provider returned an Ethereum address, not a Solana account. In Bitget Wallet, select its Solana account/network and reconnect."
         );
       }
       const challengePayload = await postJson(
@@ -277,6 +277,9 @@ export default function WalletSettings() {
         Connect a compatible wallet and approve a one-time BHID message inside
         the wallet. Your signature is verified without asking you to copy it.
         The address is private profile data and is not sent to OAuth clients.
+        This verifies Solana key ownership without a transaction or network
+        lookup; select the intended Solana account in Bitget Wallet before
+        connecting.
       </p>
       {wallet.address && !editingWallet ? (
         <div className="mt-5 rounded-lg border border-zinc-700 bg-zinc-950 p-4">

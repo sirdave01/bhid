@@ -46,7 +46,25 @@ export async function GET(request: NextRequest) {
 
     const claims = verifyOAuthToken(token, application.client_id);
 
-    if (!claims || !claims.scope.split(/\s+/).includes("openid")) {
+    if (!claims) {
+      return unauthorized();
+    }
+
+    const scopes = claims.scope.split(/\s+/).filter(Boolean);
+    const supportedScopes = new Set(["openid", "email", "profile", "bhid"]);
+    const permittedScopes = new Set([
+      "openid",
+      ...(application.allowed_scopes ?? []),
+    ]);
+
+    if (
+      !scopes.includes("openid") ||
+      new Set(scopes).size !== scopes.length ||
+      scopes.some(
+        (scope) =>
+          !supportedScopes.has(scope) || !permittedScopes.has(scope)
+      )
+    ) {
       return unauthorized();
     }
 
@@ -56,17 +74,17 @@ export async function GET(request: NextRequest) {
       return unauthorized();
     }
 
-    const scopes = new Set(claims.scope.split(/\s+/));
+    const grantedScopes = new Set(scopes);
     const userInfo: Record<string, string | boolean> = {
       sub: user.userId,
     };
 
-    if (scopes.has("email")) {
+    if (grantedScopes.has("email")) {
       userInfo.email = user.email;
       userInfo.email_verified = user.emailVerified;
     }
 
-    if (scopes.has("profile")) {
+    if (grantedScopes.has("profile")) {
       if (user.displayName) {
         userInfo.name = user.displayName;
       }
@@ -78,7 +96,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    if (scopes.has("bhid")) {
+    if (grantedScopes.has("bhid")) {
       userInfo.bhid = user.bhid;
     }
 

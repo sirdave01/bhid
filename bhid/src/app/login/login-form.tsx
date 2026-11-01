@@ -16,14 +16,18 @@ export default function LoginForm({ continueTo }: LoginFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  async function handlePasskeySignIn() {
+  async function handlePasskeySignIn(useAnotherDevice = false) {
     setError("");
     setIsSubmitting(true);
 
     try {
       const optionsResponse = await fetch(
         "/api/auth/passkeys/authenticate/options",
-        { method: "POST" }
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ useAnotherDevice }),
+        }
       );
       const optionsPayload: unknown = await optionsResponse.json();
 
@@ -174,6 +178,18 @@ export default function LoginForm({ continueTo }: LoginFormProps) {
       >
         Sign in with a passkey
       </button>
+      <button
+        className="w-full rounded-md border border-gray-300 px-4 py-2 text-sm font-medium disabled:opacity-60"
+        disabled={isSubmitting}
+        onClick={() => void handlePasskeySignIn(true)}
+        type="button"
+      >
+        Use a passkey from another device (scan QR code)
+      </button>
+      <p className="text-center text-xs text-zinc-300">
+        Your browser may show a QR code to scan with the device that has your
+        passkey. This option depends on browser and device support.
+      </p>
       <p className="text-center text-sm text-white">
         New to BHID?{" "}
         <Link className="font-medium text-white underline" href="/register">
