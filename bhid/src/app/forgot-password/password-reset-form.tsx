@@ -1,5 +1,9 @@
 "use client";
 
+import {
+  startAuthentication,
+  type PublicKeyCredentialRequestOptionsJSON,
+} from "@simplewebauthn/browser";
 import { useEffect, useState, type FormEvent } from "react";
 
 function responseMessage(value: unknown, fallback: string) {
@@ -26,11 +30,38 @@ function readChallengeToken(value: unknown): string | null {
   return value.data.challengeToken;
 }
 
+function isPasskeyOptions(
+  value: unknown
+): value is {
+  data: {
+    challengeId: string;
+    options: PublicKeyCredentialRequestOptionsJSON;
+  };
+} {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "data" in value &&
+    typeof value.data === "object" &&
+    value.data !== null &&
+    "challengeId" in value.data &&
+    typeof value.data.challengeId === "string" &&
+    "options" in value.data &&
+    typeof value.data.options === "object" &&
+    value.data.options !== null &&
+    "challenge" in value.data.options &&
+    typeof value.data.options.challenge === "string" &&
+    "rpId" in value.data.options &&
+    typeof value.data.options.rpId === "string"
+  );
+}
+
 export default function PasswordResetForm() {
   const [email, setEmail] = useState("");
   const [challengeToken, setChallengeToken] = useState("");
   const [emailCode, setEmailCode] = useState("");
   const [totpCode, setTotpCode] = useState("");
+  const [passkeyVerified, setPasskeyVerified] = useState(false);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -73,6 +104,9 @@ export default function PasswordResetForm() {
         throw new Error("Unable to start the password reset.");
       }
       setChallengeToken(token);
+      setEmailCode("");
+      setTotpCode("");
+      setPasskeyVerified(false);
       setMessage(
         "If your account is eligible, a code and reset link have been sent. Check your inbox and spam folder."
       );
@@ -81,6 +115,67 @@ export default function PasswordResetForm() {
         error instanceof Error
           ? error.message
           : "Unable to request a password reset."
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function verifyPasskey() {
+    setBusy(true);
+    setMessage("");
+
+    try {
+      const optionsResponse = await fetch(
+        "/api/auth/password/reset/passkey/options",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ challengeToken }),
+        }
+      );
+      const optionsPayload: unknown = await optionsResponse.json();
+
+      if (!optionsResponse.ok || !isPasskeyOptions(optionsPayload)) {
+        throw new Error(
+          responseMessage(
+            optionsPayload,
+            "Unable to start passkey verification."
+          )
+        );
+      }
+
+      const credential = await startAuthentication({
+        optionsJSON: optionsPayload.data.options,
+      });
+      const verifyResponse = await fetch(
+        "/api/auth/password/reset/passkey/verify",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            challengeToken,
+            challengeId: optionsPayload.data.challengeId,
+            response: credential,
+          }),
+        }
+      );
+      const verifyPayload: unknown = await verifyResponse.json();
+
+      if (!verifyResponse.ok) {
+        throw new Error(
+          responseMessage(verifyPayload, "Unable to verify this passkey.")
+        );
+      }
+
+      setPasskeyVerified(true);
+      setMessage("");
+    } catch (error) {
+      setPasskeyVerified(false);
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : "Unable to verify this passkey."
       );
     } finally {
       setBusy(false);
@@ -225,6 +320,27 @@ export default function PasswordResetForm() {
           required
           value={totpCode}
         />
+      </div>
+      <div className="space-y-2 rounded-lg border border-zinc-700 p-4">
+        <p className="text-sm font-medium">Passkey verification</p>
+        <p className="text-xs text-zinc-400">
+          If your account has a registered passkey, verify it here. Accounts
+          with a passkey must provide it in addition to the email and
+          authenticator codes. Accounts without a passkey can continue with the
+          existing recovery steps.
+        </p>
+        <button
+          className="rounded-lg border border-zinc-600 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
+          disabled={busy || passkeyVerified || !challengeToken}
+          onClick={() => void verifyPasskey()}
+          type="button"
+        >
+          {passkeyVerified
+            ? "Passkey verified"
+            : busy
+              ? "Verifying passkey…"
+              : "Verify passkey"}
+        </button>
       </div>
       <PasswordField
         label="New password"

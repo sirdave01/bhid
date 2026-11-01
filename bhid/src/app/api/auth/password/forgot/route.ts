@@ -149,7 +149,7 @@ export async function POST(request: NextRequest) {
         ...(replyTo ? { reply_to: replyTo } : {}),
         to: [user.email],
         subject: "Your BHID password reset code",
-        html: `<p>Use this email code to reset your BHID password:</p><p style="font-size:24px;font-weight:bold;letter-spacing:4px">${emailCode}</p><p><a href="${resetUrl.toString()}">Continue password reset</a></p><p>This code and link expire in 10 minutes. Your authenticator-app code is also required. If you did not request this, you can ignore this email.</p>`,
+        html: `<p>Use this email code to reset your BHID password:</p><p style="font-size:24px;font-weight:bold;letter-spacing:4px">${emailCode}</p><p><a href="${resetUrl.toString()}">Continue password reset</a></p><p>This code and link expire in 10 minutes. Your authenticator-app code is also required. If your account has a registered passkey, you must also verify it. If you did not request this, you can ignore this email.</p>`,
       }),
       cache: "no-store",
     });

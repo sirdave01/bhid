@@ -62,7 +62,7 @@ These endpoints validate the access token against the current user and session s
 
 ### Passkeys
 
-The initial passkey implementation supports discoverable passkey sign-in and authenticated passkey registration, listing, and removal:
+The passkey implementation supports discoverable passkey sign-in and authenticated passkey registration, listing, and removal. Password recovery requires an email code and authenticator-app code; accounts with a registered passkey must also verify it:
 
 | Endpoint | Purpose |
 | --- | --- |
@@ -72,8 +72,10 @@ The initial passkey implementation supports discoverable passkey sign-in and aut
 | `POST /api/auth/passkeys/authenticate/verify` | Verify a passkey assertion and create a BHID session |
 | `GET /api/auth/passkeys` | List the authenticated user's registered passkeys |
 | `DELETE /api/auth/passkeys/{id}` | Remove one of the authenticated user's passkeys |
+| `POST /api/auth/password/reset/passkey/options` | Create a passkey challenge bound to a password reset |
+| `POST /api/auth/password/reset/passkey/verify` | Verify the reset-bound passkey assertion |
 
-Challenges are single-use and expire after five minutes. User verification is required, registration uses `attestation: none`, and BHID stores the credential public key and signature counter rather than biometric data. The registration and sign-in interface is available on the Security Settings and Login pages.
+Challenges are single-use and expire after five minutes. User verification is required, registration uses `attestation: none`, and BHID stores the credential public key and signature counter rather than biometric data. The registration interface is available in Security Settings, sign-in on Login, and recovery on the Forgot Password page. Accounts without a registered passkey retain the existing email-code plus authenticator-code recovery flow.
 
 Apply the WebAuthn schema migration before using these routes:
 
@@ -81,7 +83,7 @@ Apply the WebAuthn schema migration before using these routes:
 psql "$env:DATABASE_URL" -v ON_ERROR_STOP=1 -f .\database\migrations\002_webauthn_passkeys.sql
 ```
 
-`WEBAUTHN_RP_ID` and `WEBAUTHN_RP_NAME` may be set to override the defaults derived from the configured issuer. `WEBAUTHN_ORIGINS` may contain a comma-separated list of exact origins for the BHID UI; every origin must be covered by the relying-party ID. Production origins and issuer must use HTTPS. Apply the migration only after reviewing the target database and taking a backup. Browser/device coverage and end-to-end verification against a migrated test database are still required before production use.
+`WEBAUTHN_RP_ID` and `WEBAUTHN_RP_NAME` may be set to override the defaults derived from the configured issuer. `WEBAUTHN_ORIGINS` may contain a comma-separated list of exact origins for the BHID UI; every origin must be covered by the relying-party ID. Production origins and issuer must use HTTPS. Apply the migration only after reviewing the target database and taking a backup. Passkey registration has been verified in production; passkey sign-in and the new password-recovery flow still need browser/device and end-to-end verification.
 
 Passkeys do not require a separate secret. `JWT_ISSUER` is required and must be the canonical public BHID URL over HTTPS in production. By default, the relying-party ID is its hostname and the allowed origin is its origin, so no additional WebAuthn variables are needed when the issuer and BHID UI use the same host. If the UI uses another host, set `WEBAUTHN_ORIGINS` to its exact HTTPS origin and set `WEBAUTHN_RP_ID` to a domain that covers that host. `WEBAUTHN_RP_NAME` is an optional display name. Configure overrides in the Vercel Production environment when needed, then redeploy.
 
@@ -153,7 +155,9 @@ Planned milestones include:
 - [x] Current-user endpoint and session management
 - [x] Authenticated member search and founder account moderation
 - [ ] Authentication security hardening (rate limiting, security audit events and full automated flow tests remain)
-- [ ] Passkey registration and authentication (implementation exists; database migration and browser/device checks remain)
+- [x] Passkey registration (verified against the production WebAuthn configuration)
+- [ ] Passkey sign-in (browser/device end-to-end verification remains)
+- [ ] Passkey-backed password recovery (migration 006 and end-to-end verification remain)
 - [ ] Cross-application OAuth 2.0 and OpenID Connect (implementation exists; migration and end-to-end verification against a separate client remain)
 - [x] Production deployment and security testing
 
@@ -193,6 +197,12 @@ Generate `MFA_TOTP_ENCRYPTION_KEY` from 32 random bytes encoded as Base64 (for e
 Configure S3 credentials using the AWS SDK default credential chain (for example, server-side `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`, or an attached AWS role). `AWS_S3_PUBLIC_BASE_URL` must point to a public HTTPS asset origin, preferably a CloudFront distribution backed by the bucket. Apply `database/migrations/005_profile_avatar_s3.sql` before deploying avatar uploads; new uploads save an S3 object key, while existing `avatar_url` values remain readable for backward compatibility.
 
 Apply `database/migrations/003_account_security.sql` before using profile, email verification, wallet-linking, or TOTP settings. Apply `database/migrations/004_password_recovery_and_signup_mfa.sql` before deploying mandatory TOTP enrollment during registration and password recovery. Review the target database and take a backup before applying migrations; the app does not run migrations automatically. Existing accounts must enroll an authenticator in Security Settings before they can use password recovery. Account MFA is not required during sign-in.
+
+Apply `database/migrations/006_passkey_password_recovery.sql` before deploying passkey verification during password recovery. It binds a single-use WebAuthn assertion to the existing password-reset challenge. Run it against a reviewed and backed-up database; existing password reset challenges remain valid and registered passkeys are not changed:
+
+```powershell
+psql "$env:DATABASE_URL" -v ON_ERROR_STOP=1 -f .\database\migrations\006_passkey_password_recovery.sql
+```
 
 Never publish real secrets in this README or in example environment files.
 

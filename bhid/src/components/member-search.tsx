@@ -1,11 +1,13 @@
 "use client";
 
+import Image from "next/image";
 import { useState, type FormEvent } from "react";
 
 type MemberSearchResult = {
   bhid: string;
   username: string | null;
   displayName: string | null;
+  avatarUrl: string | null;
 };
 
 function isMemberSearchResult(value: unknown): value is MemberSearchResult {
@@ -17,7 +19,9 @@ function isMemberSearchResult(value: unknown): value is MemberSearchResult {
     "username" in value &&
     (typeof value.username === "string" || value.username === null) &&
     "displayName" in value &&
-    (typeof value.displayName === "string" || value.displayName === null)
+    (typeof value.displayName === "string" || value.displayName === null) &&
+    "avatarUrl" in value &&
+    (typeof value.avatarUrl === "string" || value.avatarUrl === null)
   );
 }
 
@@ -144,18 +148,24 @@ export default function MemberSearch() {
           <ul className="divide-y divide-zinc-800">
             {results.map((user) => (
               <li
-                className="flex flex-wrap items-center justify-between gap-2 px-5 py-4"
+                className="flex flex-wrap items-center justify-between gap-3 px-5 py-4"
                 key={user.bhid}
               >
-                <div>
-                  <p className="font-medium">
-                    {user.displayName || user.username || user.bhid}
-                  </p>
-                  {user.username && (
-                    <p className="mt-1 text-sm text-zinc-400">
-                      @{user.username}
+                <div className="flex min-w-0 items-center gap-3">
+                  <MemberAvatar
+                    avatarUrl={user.avatarUrl}
+                    label={user.displayName || user.username || user.bhid}
+                  />
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">
+                      {user.displayName || user.username || user.bhid}
                     </p>
-                  )}
+                    {user.username && (
+                      <p className="mt-1 truncate text-sm text-zinc-400">
+                        @{user.username}
+                      </p>
+                    )}
+                  </div>
                 </div>
                 <p className="font-mono text-xs text-zinc-500">{user.bhid}</p>
               </li>
@@ -164,5 +174,38 @@ export default function MemberSearch() {
         )}
       </section>
     </>
+  );
+}
+
+function MemberAvatar({
+  avatarUrl,
+  label,
+}: {
+  avatarUrl: string | null;
+  label: string;
+}) {
+  const [failed, setFailed] = useState(false);
+  const initial = label.trim().charAt(0).toUpperCase() || "U";
+
+  return (
+    <div
+      aria-label={`${label}'s profile picture`}
+      className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-zinc-700 text-lg font-semibold text-zinc-200"
+      role="img"
+    >
+      {avatarUrl && !failed ? (
+        <Image
+          alt=""
+          className="object-cover"
+          fill
+          sizes="48px"
+          src={avatarUrl}
+          unoptimized
+          onError={() => setFailed(true)}
+        />
+      ) : (
+        <span aria-hidden="true">{initial}</span>
+      )}
+    </div>
   );
 }

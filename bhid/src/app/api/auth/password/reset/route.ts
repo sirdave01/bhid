@@ -14,6 +14,8 @@ type ResetChallenge = {
   attempts: number;
   secret_encrypted: string;
   last_used_step: string | null;
+  passkey_verified_at: Date | null;
+  has_passkey: boolean;
 };
 
 function invalidChallenge() {
@@ -65,7 +67,13 @@ export async function POST(request: NextRequest) {
          c.email_code_hash,
          c.attempts,
          m.secret_encrypted,
-         m.last_used_step
+         m.last_used_step,
+         c.passkey_verified_at,
+         EXISTS (
+           SELECT 1
+           FROM webauthn_credentials AS credential
+           WHERE credential.user_id = u.id
+         ) AS has_passkey
        FROM password_reset_challenges AS c
        JOIN users AS u
          ON u.id = c.user_id
@@ -135,6 +143,19 @@ export async function POST(request: NextRequest) {
             "That authenticator code was already used. Wait for a new code and try again.",
         },
         { status: 409 }
+      );
+    }
+
+    if (challenge.has_passkey && challenge.passkey_verified_at === null) {
+      await client.query("ROLLBACK");
+      transactionOpen = false;
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Verify a registered passkey before resetting this password",
+        },
+        { status: 401 }
       );
     }
 

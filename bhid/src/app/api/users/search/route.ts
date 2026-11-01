@@ -2,11 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { getRequestSession } from "@/lib/account-session";
 import pool from "@/lib/db";
+import { getAvatarPublicUrl } from "@/lib/s3";
 
 type MemberSearchResult = {
   bhid: string;
   username: string | null;
   display_name: string | null;
+  avatar_key: string | null;
+  avatar_url: string | null;
 };
 
 export async function POST(request: NextRequest) {
@@ -58,7 +61,9 @@ export async function POST(request: NextRequest) {
       `SELECT
          u.bhid,
          p.username,
-         p.display_name
+         p.display_name,
+         p.avatar_key,
+         p.avatar_url
        FROM users AS u
        LEFT JOIN profiles AS p
          ON p.user_id = u.id
@@ -90,6 +95,7 @@ export async function POST(request: NextRequest) {
           bhid: user.bhid,
           username: user.username,
           displayName: user.display_name,
+          avatarUrl: getAvatarPublicUrl(user.avatar_key, user.avatar_url),
         })),
       },
     });
