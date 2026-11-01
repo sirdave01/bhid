@@ -118,13 +118,24 @@ export async function POST(request: NextRequest) {
         expectedRPID: config.rpID,
         requireUserVerification: true,
       });
-    } catch {
+    } catch (error) {
+      console.error("Passkey registration response verification failed:", error);
       await client.query("COMMIT");
       transactionOpen = false;
       return invalidRequest();
     }
 
-    if (!verification.verified || !verification.registrationInfo.userVerified) {
+    if (!verification.verified) {
+      console.error("Passkey registration response was not verified:", {
+        verified: false,
+      });
+      await client.query("COMMIT");
+      transactionOpen = false;
+      return invalidRequest();
+    }
+
+    if (!verification.registrationInfo.userVerified) {
+      console.error("Passkey registration did not verify the user.");
       await client.query("COMMIT");
       transactionOpen = false;
       return invalidRequest();
