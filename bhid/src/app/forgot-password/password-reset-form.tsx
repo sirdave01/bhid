@@ -108,7 +108,7 @@ export default function PasswordResetForm() {
       setTotpCode("");
       setPasskeyVerified(false);
       setMessage(
-        "If your account is eligible, a code and reset link have been sent. Check your inbox and spam folder."
+        "If an eligible account matches that email, a reset code and link will be sent. Check your inbox and spam folder. For security, BHID can't confirm whether an email is registered."
       );
     } catch (error) {
       setMessage(

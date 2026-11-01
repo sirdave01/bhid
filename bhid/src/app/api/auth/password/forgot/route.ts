@@ -8,7 +8,7 @@ import pool from "@/lib/db";
 import { passwordResetRequestSchema } from "@/lib/validations";
 
 const GENERIC_MESSAGE =
-  "If the account is eligible for recovery, a code and reset link will be sent to its email address.";
+  "If an eligible account matches that email, a reset code and link will be sent. For security, BHID cannot confirm whether an email is registered.";
 
 export async function POST(request: NextRequest) {
   let body: unknown;
