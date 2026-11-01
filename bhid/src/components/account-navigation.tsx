@@ -63,6 +63,9 @@ async function AccountNavigationContent() {
 
       {session ? (
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-zinc-300">
+          <Link className="hover:text-white" href="/users">
+            Find people
+          </Link>
           <Link className="hover:text-white" href="/settings/profile">
             Profile
           </Link>

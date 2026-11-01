@@ -83,6 +83,8 @@ psql "$env:DATABASE_URL" -v ON_ERROR_STOP=1 -f .\database\migrations\002_webauth
 
 `WEBAUTHN_RP_ID` and `WEBAUTHN_RP_NAME` may be set to override the defaults derived from the configured issuer. `WEBAUTHN_ORIGINS` may contain a comma-separated list of exact origins for the BHID UI; every origin must be covered by the relying-party ID. Production origins and issuer must use HTTPS. Apply the migration only after reviewing the target database and taking a backup. Browser/device coverage and end-to-end verification against a migrated test database are still required before production use.
 
+Passkeys do not require a separate secret. `JWT_ISSUER` is required and must be the canonical public BHID URL over HTTPS in production. By default, the relying-party ID is its hostname and the allowed origin is its origin, so no additional WebAuthn variables are needed when the issuer and BHID UI use the same host. If the UI uses another host, set `WEBAUTHN_ORIGINS` to its exact HTTPS origin and set `WEBAUTHN_RP_ID` to a domain that covers that host. `WEBAUTHN_RP_NAME` is an optional display name. Configure overrides in the Vercel Production environment when needed, then redeploy.
+
 ### Initial OAuth 2.0 / OpenID Connect provider
 
 The repository now includes an initial Authorization Code flow with PKCE and OpenID Connect endpoints:
@@ -149,9 +151,10 @@ Planned milestones include:
 - [x] Password login and session creation
 - [x] Refresh-token rotation and logout
 - [x] Current-user endpoint and session management
+- [x] Authenticated member search and founder account moderation
 - [ ] Authentication security hardening (rate limiting, security audit events and full automated flow tests remain)
-- [ ] Passkey registration and authentication (database migration and browser/device checks remain)
-- [x] Cross-application OAuth 2.0 and OpenID Connect (migration and end-to-end verification against a separate client remain)
+- [ ] Passkey registration and authentication (implementation exists; database migration and browser/device checks remain)
+- [ ] Cross-application OAuth 2.0 and OpenID Connect (implementation exists; migration and end-to-end verification against a separate client remain)
 - [x] Production deployment and security testing
 
 Implementation status is not the same as production readiness. Apply migrations to a reviewed test database and complete the outstanding end-to-end, rate-limit, browser/device, and protocol checks before using BHID with real accounts or external clients.

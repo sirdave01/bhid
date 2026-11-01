@@ -3,12 +3,16 @@ import { connection } from "next/server";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
+import FounderUserActions from "@/components/founder-user-actions";
 import pool from "@/lib/db";
 import { getFounderSession } from "@/lib/founder-access";
 
 type RegisteredUser = {
+  id: string;
   bhid: string;
   email: string;
+  username: string | null;
+  display_name: string | null;
   status: string;
   verification_level: number;
   email_verified_at: Date | null;
@@ -40,9 +44,20 @@ function formatDate(value: Date) {
   });
 }
 
+function getFounderPageHref(page: number, query: string) {
+  const params = new URLSearchParams({ page: String(page) });
+
+  if (query) {
+    params.set("q", query);
+  }
+
+  return `/founder?${params.toString()}`;
+}
+
 type FounderPageProps = {
   searchParams: Promise<{
     page?: string | string[];
+    q?: string | string[];
   }>;
 };
 
@@ -63,18 +78,38 @@ export default function FounderPage({ searchParams }: FounderPageProps) {
 async function FounderDashboard({ searchParams }: FounderPageProps) {
   await connection();
 
-  if (!(await getFounderSession())) {
+  const founderSession = await getFounderSession();
+
+  if (!founderSession) {
     notFound();
   }
 
   const params = await searchParams;
+  const searchTerm =
+    typeof params.q === "string"
+      ? params.q.trim().replace(/[\u0000-\u001f\u007f]/g, "").slice(0, 100)
+      : "";
   const requestedPage =
     typeof params.page === "string" && Number.isSafeInteger(Number(params.page))
       ? Math.max(Number(params.page), 1)
       : 1;
+  const searchCondition = `(
+    $1::text IS NULL
+    OR position(lower($1) in lower(COALESCE(p.username, ''))) > 0
+    OR position(lower($1) in lower(u.email)) > 0
+    OR position(lower($1) in lower(COALESCE(p.display_name, ''))) > 0
+  )`;
+  const searchValue = searchTerm || null;
 
   const [userCountResult, applicationsResult] = await Promise.all([
-    pool.query<UserCount>("SELECT COUNT(*)::text AS total FROM users"),
+    pool.query<UserCount>(
+      `SELECT COUNT(*)::text AS total
+       FROM users AS u
+       LEFT JOIN profiles AS p
+         ON p.user_id = u.id
+       WHERE ${searchCondition}`,
+      [searchValue]
+    ),
     pool.query<RegisteredApplication>(
       `SELECT
          name,
@@ -96,16 +131,22 @@ async function FounderDashboard({ searchParams }: FounderPageProps) {
 
   const usersResult = await pool.query<RegisteredUser>(
     `SELECT
-       bhid,
-       email,
-       status,
-       verification_level,
-       email_verified_at,
-       created_at
-     FROM users
-     ORDER BY created_at DESC, id DESC
-     LIMIT $1 OFFSET $2`,
-    [usersPerPage, (page - 1) * usersPerPage]
+       u.id,
+       u.bhid,
+       u.email,
+       p.username,
+       p.display_name,
+       u.status,
+       u.verification_level,
+       u.email_verified_at,
+       u.created_at
+     FROM users AS u
+     LEFT JOIN profiles AS p
+       ON p.user_id = u.id
+     WHERE ${searchCondition}
+     ORDER BY u.created_at DESC, u.id DESC
+     LIMIT $2 OFFSET $3`,
+    [searchValue, usersPerPage, (page - 1) * usersPerPage]
   );
 
   const users = usersResult.rows;
@@ -137,28 +178,70 @@ async function FounderDashboard({ searchParams }: FounderPageProps) {
               Registered users
             </h2>
             <p className="mt-1 text-sm text-zinc-600">
-              Showing {firstUser}–{lastUser} of {totalUsers} accounts. Passwords
-              and session credentials are not displayed.
+              {searchTerm
+                ? `Showing ${firstUser}–${lastUser} of ${totalUsers} matching accounts.`
+                : `Showing ${firstUser}–${lastUser} of ${totalUsers} accounts.`}{" "}
+              Passwords and session credentials are not displayed.
             </p>
           </div>
+          <form
+            action="/founder"
+            className="mb-4 flex flex-wrap items-end gap-3"
+            role="search"
+          >
+            <div className="flex min-w-64 flex-1 flex-col gap-1">
+              <label className="text-sm font-medium" htmlFor="user-search">
+                Search by username, email, or full name
+              </label>
+              <input
+                autoComplete="off"
+                className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm"
+                id="user-search"
+                maxLength={100}
+                name="q"
+                placeholder="Enter a username, email, or name"
+                type="search"
+                defaultValue={searchTerm}
+              />
+            </div>
+            <button
+              className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700"
+              type="submit"
+            >
+              Search
+            </button>
+            {searchTerm && (
+              <Link
+                className="px-2 py-2 text-sm font-medium text-zinc-700 underline"
+                href="/founder"
+              >
+                Clear
+              </Link>
+            )}
+          </form>
           <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white">
-            <table className="w-full min-w-[760px] text-left text-sm">
+            <table className="w-full min-w-[1100px] text-left text-sm">
               <thead className="bg-zinc-100 text-xs uppercase tracking-wide text-zinc-600">
                 <tr>
                   <th className="px-4 py-3 font-medium">BHID</th>
+                  <th className="px-4 py-3 font-medium">Username</th>
+                  <th className="px-4 py-3 font-medium">Full name</th>
                   <th className="px-4 py-3 font-medium">Email</th>
                   <th className="px-4 py-3 font-medium">Status</th>
                   <th className="px-4 py-3 font-medium">Email verified</th>
                   <th className="px-4 py-3 font-medium">Level</th>
                   <th className="px-4 py-3 font-medium">Registered (UTC)</th>
+                  <th className="px-4 py-3 font-medium">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
                 {users.map((user) => (
-                  <tr key={user.bhid}>
+                  <tr key={user.id}>
                     <td className="whitespace-nowrap px-4 py-3 font-mono text-xs">
                       {user.bhid}
                     </td>
+                    <td className="px-4 py-3">{user.username || "—"}</td>
+                    <td className="px-4 py-3">{user.display_name || "—"}</td>
                     <td className="px-4 py-3">{user.email}</td>
                     <td className="px-4 py-3">{user.status}</td>
                     <td className="px-4 py-3">
@@ -168,15 +251,29 @@ async function FounderDashboard({ searchParams }: FounderPageProps) {
                     <td className="whitespace-nowrap px-4 py-3 text-zinc-600">
                       {formatDate(user.created_at)}
                     </td>
+                    <td className="px-4 py-3">
+                      {user.id === founderSession.userId ? (
+                        <span className="text-xs text-zinc-500">
+                          Current account
+                        </span>
+                      ) : (
+                        <FounderUserActions
+                          status={user.status}
+                          userId={user.id}
+                        />
+                      )}
+                    </td>
                   </tr>
                 ))}
                 {users.length === 0 && (
                   <tr>
                     <td
                       className="px-4 py-8 text-center text-zinc-500"
-                      colSpan={6}
+                      colSpan={9}
                     >
-                      No users are registered yet.
+                      {searchTerm
+                        ? "No users match that search."
+                        : "No users are registered yet."}
                     </td>
                   </tr>
                 )}
@@ -191,7 +288,7 @@ async function FounderDashboard({ searchParams }: FounderPageProps) {
               {page > 1 ? (
                 <Link
                   className="font-medium text-zinc-700 underline"
-                  href={`/founder?page=${page - 1}`}
+                  href={getFounderPageHref(page - 1, searchTerm)}
                 >
                   Previous
                 </Link>
@@ -204,7 +301,7 @@ async function FounderDashboard({ searchParams }: FounderPageProps) {
               {page < totalPages ? (
                 <Link
                   className="font-medium text-zinc-700 underline"
-                  href={`/founder?page=${page + 1}`}
+                  href={getFounderPageHref(page + 1, searchTerm)}
                 >
                   Next
                 </Link>
