@@ -7,7 +7,7 @@ type Props = {
 const tierColors: Record<Props["tier"], string> = {
   PREMIUM: "text-sky-400",
   GOLD: "text-amber-400",
-  PLATINUM: "text-slate-200",
+  PLATINUM: "text-violet-400",
   DIAMOND: "text-emerald-500",
 };
 

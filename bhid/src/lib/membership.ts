@@ -36,7 +36,7 @@ export const MEMBERSHIP_PRESENTATION: Record<
   },
   PLATINUM: {
     label: "Platinum",
-    className: "border-slate-300 bg-slate-800 text-slate-100",
+    className: "border-violet-400 bg-violet-950 text-violet-200",
   },
   DIAMOND: {
     label: "Diamond",

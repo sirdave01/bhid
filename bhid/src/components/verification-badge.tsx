@@ -8,7 +8,7 @@ const verificationStyles: Record<string, string> = {
   Basic: "text-slate-400",
   Premium: "text-sky-400",
   Gold: "text-amber-400",
-  Platinum: "text-slate-200",
+  Platinum: "text-violet-400",
   Diamond: "text-emerald-500",
 };
 
