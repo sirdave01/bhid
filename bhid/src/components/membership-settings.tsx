@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 
+import MembershipTierSeal from "@/components/membership-tier-seal";
 import ProfileVerificationBadges from "@/components/profile-verification-badges";
 
 const PAID_TIERS = ["PREMIUM", "GOLD", "PLATINUM", "DIAMOND"] as const;
@@ -218,7 +219,10 @@ export default function MembershipSettings() {
                   onClick={() => setTier(paidTier)}
                   type="button"
                 >
-                  <span className="block font-medium">{tierNames[paidTier]}</span>
+                  <span className="flex items-center gap-2 font-medium">
+                    <MembershipTierSeal tier={paidTier} />
+                    {tierNames[paidTier]}
+                  </span>
                   <span className="mt-1 block text-sm text-zinc-400">
                     {data.payment.prices[paidTier]} HBT / 30 days
                   </span>
