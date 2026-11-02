@@ -170,7 +170,7 @@ export default function MemberSearch() {
                         {user.displayName || user.username || user.bhid}
                       </span>
                       <ProfileVerificationBadges
-                        membershipTier={user.membershipTier}
+                        verificationLevel={user.verificationLevel}
                       />
                     </p>
                     {user.username && (

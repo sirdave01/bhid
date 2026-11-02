@@ -13,7 +13,7 @@ const verificationStyles: Record<string, string> = {
 };
 
 export default function VerificationBadge({ level }: Props) {
-  const tier = getVerificationTier(level) ?? "Verified";
+  const tier = getVerificationTier(level) ?? "Basic";
 
   return (
     <span

@@ -145,7 +145,7 @@ export default function MembershipSettings() {
                   : "Your account")}
             </span>
             <ProfileVerificationBadges
-              membershipTier={data.membership.tier}
+              verificationLevel={data.membership.verification_level}
             />
           </div>
           <div className="mt-3 flex flex-wrap items-center gap-3">

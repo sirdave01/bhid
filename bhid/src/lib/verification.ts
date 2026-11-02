@@ -3,7 +3,7 @@ export const VERIFICATION_TIERS: Record<number, string> = {
   1: "Premium",
   2: "Gold",
   3: "Platinum",
-  5: "Diamond",
+  4: "Diamond",
 };
 
 export function getVerificationTier(level: number): string | undefined {

@@ -364,7 +364,7 @@ export default function ProfileSettings() {
                 {profile.displayName || "BHID User"}
               </span>
               <ProfileVerificationBadges
-                membershipTier={profile.membershipTier}
+                verificationLevel={profile.verificationLevel}
               />
             </span>
           </h3>

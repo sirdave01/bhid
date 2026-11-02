@@ -1,14 +1,11 @@
-import MembershipTierSeal from "@/components/membership-tier-seal";
-import { isMembershipTier, type MembershipTier } from "@/lib/membership";
+import VerificationBadge from "@/components/verification-badge";
 
 type Props = {
-  membershipTier: string;
+  verificationLevel: number;
 };
 
-export default function ProfileVerificationBadges({ membershipTier }: Props) {
-  const tier: MembershipTier = isMembershipTier(membershipTier)
-    ? membershipTier
-    : "BASIC";
-
-  return <MembershipTierSeal tier={tier} />;
+export default function ProfileVerificationBadges({
+  verificationLevel,
+}: Props) {
+  return <VerificationBadge level={verificationLevel} />;
 }
