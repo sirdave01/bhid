@@ -150,9 +150,25 @@ export default function MembershipSettings() {
       <section className="rounded-xl border border-zinc-800 bg-zinc-900 p-6">
         <h2 className="text-lg font-semibold">Pay with HBT</h2>
         {!data?.payment.configured ? (
-          <p className="mt-3 text-sm text-amber-200">
-            HBT payments are not configured on this BHID deployment.
-          </p>
+          <div className="mt-3 rounded-lg border border-amber-800 bg-amber-950/30 p-4 text-sm text-amber-100">
+            <p className="font-medium">
+              HBT payments are not enabled on this BHID deployment yet.
+            </p>
+            <p className="mt-2 text-amber-200">
+              The BHID deployment administrator must set these server-side
+              environment variables and redeploy:
+            </p>
+            <ul className="mt-2 list-inside list-disc font-mono text-xs">
+              <li>SOLANA_RPC_URL</li>
+              <li>HBT_TOKEN_MINT</li>
+              <li>HBT_TREASURY_ADDRESS</li>
+            </ul>
+            <p className="mt-2 text-xs text-amber-200">
+              Never put RPC credentials in browser-visible variables. You can
+              still manage your account and view your current membership while
+              payments are disabled.
+            </p>
+          </div>
         ) : (
           <>
             <p className="mt-2 text-sm text-zinc-400">

@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
 import FounderUserActions from "@/components/founder-user-actions";
+import VerificationBadge from "@/components/verification-badge";
 import pool from "@/lib/db";
 import { getFounderSession } from "@/lib/founder-access";
 
@@ -229,7 +230,7 @@ async function FounderDashboard({ searchParams }: FounderPageProps) {
                   <th className="px-4 py-3 font-medium">Email</th>
                   <th className="px-4 py-3 font-medium">Status</th>
                   <th className="px-4 py-3 font-medium">Email verified</th>
-                  <th className="px-4 py-3 font-medium">Level</th>
+                  <th className="px-4 py-3 font-medium">Verification</th>
                   <th className="px-4 py-3 font-medium">Registered (UTC)</th>
                   <th className="px-4 py-3 font-medium">Actions</th>
                 </tr>
@@ -247,7 +248,9 @@ async function FounderDashboard({ searchParams }: FounderPageProps) {
                     <td className="px-4 py-3">
                       {user.email_verified_at ? "Yes" : "No"}
                     </td>
-                    <td className="px-4 py-3">{user.verification_level}</td>
+                    <td className="px-4 py-3">
+                      <VerificationBadge level={user.verification_level} />
+                    </td>
                     <td className="whitespace-nowrap px-4 py-3 text-zinc-600">
                       {formatDate(user.created_at)}
                     </td>

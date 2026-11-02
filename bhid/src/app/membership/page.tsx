@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { connection } from "next/server";
 import { redirect } from "next/navigation";
+import { Suspense } from "react";
 
 import AccountNavigation from "@/components/account-navigation";
 import MembershipSettings from "@/components/membership-settings";
@@ -12,7 +13,21 @@ export const metadata: Metadata = {
   description: "Manage your paid BHID membership.",
 };
 
-export default async function MembershipPage() {
+export default function MembershipPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="min-h-screen bg-zinc-950 px-6 py-12 text-zinc-400">
+          Loading membership…
+        </main>
+      }
+    >
+      <MembershipContent />
+    </Suspense>
+  );
+}
+
+async function MembershipContent() {
   await connection();
   const session = await getAuthenticatedSession(
     (await cookies()).get("bhid_access")?.value
