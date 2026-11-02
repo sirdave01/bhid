@@ -1,10 +1,11 @@
 import type { MembershipTier } from "@/lib/membership";
 
 type Props = {
-  tier: Exclude<MembershipTier, "BASIC">;
+  tier: MembershipTier;
 };
 
 const tierColors: Record<Props["tier"], string> = {
+  BASIC: "text-slate-400",
   PREMIUM: "text-sky-400",
   GOLD: "text-amber-400",
   PLATINUM: "text-violet-400",
@@ -12,6 +13,7 @@ const tierColors: Record<Props["tier"], string> = {
 };
 
 const tierLabels: Record<Props["tier"], string> = {
+  BASIC: "Basic",
   PREMIUM: "Premium",
   GOLD: "Gold",
   PLATINUM: "Platinum",

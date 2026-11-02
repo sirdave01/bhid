@@ -171,7 +171,6 @@ export default function MemberSearch() {
                       </span>
                       <ProfileVerificationBadges
                         membershipTier={user.membershipTier}
-                        verificationLevel={user.verificationLevel}
                       />
                     </p>
                     {user.username && (

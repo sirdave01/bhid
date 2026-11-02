@@ -365,7 +365,6 @@ export default function ProfileSettings() {
               </span>
               <ProfileVerificationBadges
                 membershipTier={profile.membershipTier}
-                verificationLevel={profile.verificationLevel}
               />
             </span>
           </h3>
