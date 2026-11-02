@@ -7,6 +7,7 @@ import { getAvatarPublicUrl } from "@/lib/s3";
 import { hashToken } from "@/lib/auth";
 import {
   findOAuthApplication,
+  getRegisteredPublicClientOrigin,
   hasValidClientSecret,
   OAUTH_WALLETS_SELECT,
   OIDC_ACCESS_TOKEN_SECONDS,
@@ -88,60 +89,6 @@ function verifyPkce(verifier: string, challenge: string) {
     calculatedBytes.length === challengeBytes.length &&
     timingSafeEqual(calculatedBytes, challengeBytes)
   );
-}
-
-function registeredPublicClientOrigin(
-  origin: string | null,
-  redirects: string[] | null
-): string | null {
-  if (!origin || !redirects) {
-    return null;
-  }
-
-  let requestedOrigin: URL;
-
-  try {
-    requestedOrigin = new URL(origin);
-  } catch {
-    return null;
-  }
-
-  const isLoopback =
-    requestedOrigin.hostname === "localhost" ||
-    requestedOrigin.hostname === "127.0.0.1" ||
-    requestedOrigin.hostname === "[::1]";
-
-  if (
-    requestedOrigin.origin !== origin ||
-    requestedOrigin.username ||
-    requestedOrigin.password ||
-    (requestedOrigin.protocol !== "https:" &&
-      !(requestedOrigin.protocol === "http:" && isLoopback))
-  ) {
-    return null;
-  }
-
-  const redirectOrigins = new Set<string>();
-
-  for (const redirect of redirects) {
-    try {
-      const redirectUrl = new URL(redirect);
-
-      if (
-        redirectUrl.protocol === "https:" ||
-        (redirectUrl.protocol === "http:" &&
-          (redirectUrl.hostname === "localhost" ||
-            redirectUrl.hostname === "127.0.0.1" ||
-            redirectUrl.hostname === "[::1]"))
-      ) {
-        redirectOrigins.add(redirectUrl.origin);
-      }
-    } catch {
-      continue;
-    }
-  }
-
-  return redirectOrigins.has(origin) ? origin : null;
 }
 
 function buildTokenResponse(
@@ -234,7 +181,7 @@ export async function POST(request: NextRequest) {
 
   const requestOrigin = request.headers.get("origin");
   const corsOrigin = requestOrigin
-    ? registeredPublicClientOrigin(
+    ? getRegisteredPublicClientOrigin(
         requestOrigin,
         application.redirect_uris
       )

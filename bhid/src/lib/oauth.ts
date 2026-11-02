@@ -10,6 +10,8 @@ import { getJwtConfig } from "@/lib/jwt-keys";
 import { getAvatarPublicUrl } from "@/lib/s3";
 import { getVerificationTier } from "@/lib/verification";
 
+export { getVerificationTier };
+
 export const OIDC_ACCESS_TOKEN_SECONDS = 10 * 60;
 export const OAUTH_AUTHORIZATION_CODE_SECONDS = 5 * 60;
 export const OAUTH_AUTHORIZATION_REQUEST_SECONDS = 10 * 60;
@@ -115,6 +117,60 @@ export type OAuthApplication = QueryResultRow & {
   status: string;
   client_type: "PUBLIC" | "CONFIDENTIAL";
 };
+
+export function getRegisteredPublicClientOrigin(
+  origin: string | null,
+  redirects: string[] | null
+): string | null {
+  if (!origin || !redirects) {
+    return null;
+  }
+
+  let requestedOrigin: URL;
+
+  try {
+    requestedOrigin = new URL(origin);
+  } catch {
+    return null;
+  }
+
+  const isLoopback =
+    requestedOrigin.hostname === "localhost" ||
+    requestedOrigin.hostname === "127.0.0.1" ||
+    requestedOrigin.hostname === "[::1]";
+
+  if (
+    requestedOrigin.origin !== origin ||
+    requestedOrigin.username ||
+    requestedOrigin.password ||
+    (requestedOrigin.protocol !== "https:" &&
+      !(requestedOrigin.protocol === "http:" && isLoopback))
+  ) {
+    return null;
+  }
+
+  const redirectOrigins = new Set<string>();
+
+  for (const redirect of redirects) {
+    try {
+      const redirectUrl = new URL(redirect);
+
+      if (
+        redirectUrl.protocol === "https:" ||
+        (redirectUrl.protocol === "http:" &&
+          (redirectUrl.hostname === "localhost" ||
+            redirectUrl.hostname === "127.0.0.1" ||
+            redirectUrl.hostname === "[::1]"))
+      ) {
+        redirectOrigins.add(redirectUrl.origin);
+      }
+    } catch {
+      continue;
+    }
+  }
+
+  return redirectOrigins.has(origin) ? origin : null;
+}
 
 export type ActiveBhidSession = {
   userId: string;

@@ -3,12 +3,38 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   findActiveBhidSession,
   findOAuthApplication,
+  getRegisteredPublicClientOrigin,
   getPrimaryOAuthWallet,
   readOAuthTokenAudience,
   type OAuthWallet,
   verifyOAuthToken,
 } from "@/lib/oauth";
 import { getVerificationTier } from "@/lib/verification";
+import pool from "@/lib/db";
+
+function userInfoHeaders(corsOrigin: string | null = null) {
+  const headers = new Headers({
+    "Cache-Control": "no-store",
+    Pragma: "no-cache",
+  });
+
+  if (corsOrigin) {
+    headers.set("Access-Control-Allow-Origin", corsOrigin);
+    headers.set("Vary", "Origin");
+  }
+
+  return headers;
+}
+
+function unauthorizedForOrigin(corsOrigin: string | null) {
+  const headers = userInfoHeaders(corsOrigin);
+  headers.set("WWW-Authenticate", 'Bearer error="invalid_token"');
+
+  return NextResponse.json(
+    { error: "invalid_token" },
+    { status: 401, headers }
+  );
+}
 
 function unauthorized() {
   return NextResponse.json(
@@ -21,6 +47,46 @@ function unauthorized() {
       },
     }
   );
+}
+
+export async function OPTIONS(request: NextRequest) {
+  const origin = request.headers.get("origin");
+
+  if (!origin) {
+    return new NextResponse(null, { status: 204 });
+  }
+
+  try {
+    const result = await pool.query<{ redirect_uris: string[] | null }>(
+      `SELECT redirect_uris
+       FROM applications
+       WHERE status = 'ACTIVE'
+         AND client_type = 'PUBLIC'`
+    );
+    const corsOrigin = result.rows.some(
+      (application) =>
+        getRegisteredPublicClientOrigin(origin, application.redirect_uris) ===
+        origin
+    )
+      ? origin
+      : null;
+
+    if (!corsOrigin) {
+      return new NextResponse(null, { status: 403 });
+    }
+
+    const headers = userInfoHeaders(corsOrigin);
+    headers.set("Access-Control-Allow-Methods", "GET, OPTIONS");
+    headers.set("Access-Control-Allow-Headers", "Authorization");
+    headers.set("Access-Control-Max-Age", "600");
+    return new NextResponse(null, { status: 204, headers });
+  } catch (error) {
+    console.error("OAuth UserInfo preflight failed:", error);
+    return new NextResponse(null, {
+      status: 500,
+      headers: userInfoHeaders(),
+    });
+  }
 }
 
 export async function GET(request: NextRequest) {
@@ -47,10 +113,17 @@ export async function GET(request: NextRequest) {
       return unauthorized();
     }
 
+    const corsOrigin =
+      application.client_type === "PUBLIC"
+        ? getRegisteredPublicClientOrigin(
+            request.headers.get("origin"),
+            application.redirect_uris
+          )
+        : null;
     const claims = verifyOAuthToken(token, application.client_id);
 
     if (!claims) {
-      return unauthorized();
+      return unauthorizedForOrigin(corsOrigin);
     }
 
     const scopes = claims.scope.split(/\s+/).filter(Boolean);
@@ -76,13 +149,13 @@ export async function GET(request: NextRequest) {
           !supportedScopes.has(scope) || !permittedScopes.has(scope)
       )
     ) {
-      return unauthorized();
+      return unauthorizedForOrigin(corsOrigin);
     }
 
     const user = await findActiveBhidSession(claims);
 
     if (!user) {
-      return unauthorized();
+      return unauthorizedForOrigin(corsOrigin);
     }
 
     const grantedScopes = new Set(scopes);
@@ -156,10 +229,7 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json(userInfo, {
-      headers: {
-        "Cache-Control": "no-store",
-        Pragma: "no-cache",
-      },
+      headers: userInfoHeaders(corsOrigin),
     });
   } catch (error) {
     console.error("OAuth UserInfo request failed:", error);
