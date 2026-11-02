@@ -75,6 +75,12 @@ async function AccountNavigationContent() {
           <Link className="hover:text-white" href="/settings/wallet">
             Wallet
           </Link>
+          <Link className="hover:text-white" href="/membership">
+            Membership
+          </Link>
+          <Link className="hover:text-white" href="/developers">
+            Developers
+          </Link>
           <Link className="hover:text-white" href="/settings/password">
             Password
           </Link>

@@ -216,7 +216,15 @@ export async function POST(request: NextRequest) {
         return invalidRequest();
       }
 
-      const supportedScopes = new Set(["openid", "email", "profile", "bhid"]);
+      const supportedScopes = new Set([
+        "openid",
+        "email",
+        "profile",
+        "bhid",
+        "verification",
+        "wallet",
+        "membership",
+      ]);
       if (
         authorizationRequest.scopes.some(
           (scope: string) =>

@@ -1,11 +1,18 @@
 import { randomBytes, createHash } from "node:crypto";
 import { Pool } from "pg";
 
-const allowedScopes = new Set(["email", "profile", "bhid"]);
+const allowedScopes = new Set([
+  "email",
+  "profile",
+  "bhid",
+  "verification",
+  "wallet",
+  "membership",
+]);
 
 function usage() {
   console.log(
-    "Usage: npm run oauth:register-client -- --name NAME --slug SLUG --type public|confidential --redirect-uri URI [--redirect-uri URI ...] [--scopes email,profile,bhid]"
+    "Usage: npm run oauth:register-client -- --name NAME --slug SLUG --type public|confidential --redirect-uri URI [--redirect-uri URI ...] [--scopes email,profile,bhid,verification,wallet,membership]"
   );
 }
 
@@ -135,7 +142,9 @@ async function main() {
     new Set(requestedScopes).size !== requestedScopes.length ||
     requestedScopes.some((scope) => !allowedScopes.has(scope))
   ) {
-    throw new Error("--scopes may contain only email, profile, and bhid.");
+    throw new Error(
+      "--scopes may contain only email, profile, bhid, verification, wallet, and membership."
+    );
   }
 
   if (!process.env.DATABASE_URL) {

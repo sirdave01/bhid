@@ -14,6 +14,7 @@ type ProfileRow = {
   date_of_birth: string | Date | null;
   wallet_address: string | null;
   wallet_verified_at: Date | null;
+  membership_tier: string | null;
 };
 
 function unauthorized() {
@@ -40,9 +41,18 @@ export async function GET(request: NextRequest) {
          avatar_key,
          date_of_birth,
          wallet_address,
-         wallet_verified_at
-       FROM profiles
-       WHERE user_id = $1
+         wallet_verified_at,
+         CASE
+           WHEN m.expires_at IS NOT NULL AND m.expires_at <= NOW()
+             THEN 'BASIC'
+           ELSE m.tier::text
+         END AS membership_tier
+       FROM users AS u
+       LEFT JOIN profiles AS p
+         ON p.user_id = u.id
+       LEFT JOIN user_memberships AS m
+         ON m.user_id = u.id
+       WHERE u.id = $1
        LIMIT 1`,
       [session.userId]
     );
@@ -65,6 +75,7 @@ export async function GET(request: NextRequest) {
             : profile?.date_of_birth ?? "",
         walletAddress: profile?.wallet_address ?? null,
         walletVerifiedAt: profile?.wallet_verified_at?.toISOString() ?? null,
+        membershipTier: profile?.membership_tier ?? "BASIC",
       },
     });
   } catch (error) {

@@ -3,11 +3,14 @@
 import Image from "next/image";
 import { useState, type FormEvent } from "react";
 
+import MembershipBadge from "@/components/membership-badge";
+
 type MemberSearchResult = {
   bhid: string;
   username: string | null;
   displayName: string | null;
   avatarUrl: string | null;
+  membershipTier: string;
 };
 
 function isMemberSearchResult(value: unknown): value is MemberSearchResult {
@@ -21,7 +24,9 @@ function isMemberSearchResult(value: unknown): value is MemberSearchResult {
     "displayName" in value &&
     (typeof value.displayName === "string" || value.displayName === null) &&
     "avatarUrl" in value &&
-    (typeof value.avatarUrl === "string" || value.avatarUrl === null)
+    (typeof value.avatarUrl === "string" || value.avatarUrl === null) &&
+    "membershipTier" in value &&
+    typeof value.membershipTier === "string"
   );
 }
 
@@ -160,6 +165,9 @@ export default function MemberSearch() {
                     <p className="truncate font-medium">
                       {user.displayName || user.username || user.bhid}
                     </p>
+                    <div className="mt-1">
+                      <MembershipBadge tier={user.membershipTier} />
+                    </div>
                     {user.username && (
                       <p className="mt-1 truncate text-sm text-zinc-400">
                         @{user.username}

@@ -263,7 +263,15 @@ export async function GET(request: NextRequest) {
     }
 
     const scopes = params.scope.split(/\s+/).filter(Boolean);
-    const supportedScopes = new Set(["openid", "email", "profile", "bhid"]);
+    const supportedScopes = new Set([
+      "openid",
+      "email",
+      "profile",
+      "bhid",
+      "verification",
+      "wallet",
+      "membership",
+    ]);
 
     if (
       !scopes.includes("openid") ||

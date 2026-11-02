@@ -10,6 +10,7 @@ type MemberSearchResult = {
   display_name: string | null;
   avatar_key: string | null;
   avatar_url: string | null;
+  membership_tier: string | null;
 };
 
 export async function POST(request: NextRequest) {
@@ -63,10 +64,17 @@ export async function POST(request: NextRequest) {
          p.username,
          p.display_name,
          p.avatar_key,
-         p.avatar_url
+         p.avatar_url,
+         CASE
+           WHEN m.expires_at IS NOT NULL AND m.expires_at <= NOW()
+             THEN 'BASIC'
+           ELSE m.tier::text
+         END AS membership_tier
        FROM users AS u
        LEFT JOIN profiles AS p
          ON p.user_id = u.id
+       LEFT JOIN user_memberships AS m
+         ON m.user_id = u.id
        WHERE u.status = 'ACTIVE'
          AND u.email_verified_at IS NOT NULL
          AND u.id <> $2
@@ -96,6 +104,7 @@ export async function POST(request: NextRequest) {
           username: user.username,
           displayName: user.display_name,
           avatarUrl: getAvatarPublicUrl(user.avatar_key, user.avatar_url),
+          membershipTier: user.membership_tier ?? "BASIC",
         })),
       },
     });

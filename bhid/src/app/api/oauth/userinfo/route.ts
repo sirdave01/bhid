@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   findActiveBhidSession,
   findOAuthApplication,
+  getVerificationTier,
   readOAuthTokenAudience,
   verifyOAuthToken,
 } from "@/lib/oauth";
@@ -51,7 +52,15 @@ export async function GET(request: NextRequest) {
     }
 
     const scopes = claims.scope.split(/\s+/).filter(Boolean);
-    const supportedScopes = new Set(["openid", "email", "profile", "bhid"]);
+    const supportedScopes = new Set([
+      "openid",
+      "email",
+      "profile",
+      "bhid",
+      "verification",
+      "wallet",
+      "membership",
+    ]);
     const permittedScopes = new Set([
       "openid",
       ...(application.allowed_scopes ?? []),
@@ -75,7 +84,7 @@ export async function GET(request: NextRequest) {
     }
 
     const grantedScopes = new Set(scopes);
-    const userInfo: Record<string, string | boolean> = {
+    const userInfo: Record<string, string | boolean | number> = {
       sub: user.userId,
     };
 
@@ -98,6 +107,39 @@ export async function GET(request: NextRequest) {
 
     if (grantedScopes.has("bhid")) {
       userInfo.bhid = user.bhid;
+    }
+
+    if (grantedScopes.has("verification")) {
+      userInfo.verification_level = user.verificationLevel;
+      const verificationTier = getVerificationTier(
+        user.verificationLevel
+      );
+
+      if (verificationTier) {
+        userInfo.verification_tier = verificationTier;
+      }
+    }
+
+    if (grantedScopes.has("wallet")) {
+      userInfo.wallet_linked = user.walletAddress !== null;
+      userInfo.wallet_verified =
+        user.walletAddress !== null && user.walletVerifiedAt !== null;
+
+      if (user.walletAddress) {
+        userInfo.wallet_address = user.walletAddress;
+      }
+      if (user.walletAddress && user.walletVerifiedAt) {
+        userInfo.wallet_verified_at = user.walletVerifiedAt.toISOString();
+      }
+    }
+
+    if (grantedScopes.has("membership")) {
+      userInfo.membership_tier = user.membershipTier;
+
+      if (user.membershipExpiresAt) {
+        userInfo.membership_expires_at =
+          user.membershipExpiresAt.toISOString();
+      }
     }
 
     return NextResponse.json(userInfo, {

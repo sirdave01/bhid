@@ -10,6 +10,7 @@ import {
 } from "react";
 
 import AccountAvatar from "@/components/account-avatar";
+import MembershipBadge from "@/components/membership-badge";
 
 type Profile = {
   displayName: string;
@@ -17,6 +18,7 @@ type Profile = {
   bio: string;
   avatarUrl: string;
   dateOfBirth: string;
+  membershipTier: string;
 };
 
 const emptyProfile: Profile = {
@@ -25,6 +27,7 @@ const emptyProfile: Profile = {
   bio: "",
   avatarUrl: "",
   dateOfBirth: "",
+  membershipTier: "BASIC",
 };
 
 const MAX_AVATAR_SIZE = 5 * 1024 * 1024;
@@ -130,6 +133,7 @@ export default function ProfileSettings() {
           bio: getString(data.bio),
           avatarUrl: getString(data.avatarUrl),
           dateOfBirth: getString(data.dateOfBirth),
+          membershipTier: getString(data.membershipTier) || "BASIC",
         });
       } catch (err) {
         if (!controller.signal.aborted) {
@@ -356,6 +360,9 @@ export default function ProfileSettings() {
               ? `@${profile.username}`
               : "No username yet"}
           </p>
+          <div className="mt-2">
+            <MembershipBadge tier={profile.membershipTier} />
+          </div>
 
           <p className="mt-2 text-xs text-zinc-400">
             {previewUrl

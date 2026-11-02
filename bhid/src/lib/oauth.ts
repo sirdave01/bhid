@@ -13,6 +13,18 @@ export const OIDC_ACCESS_TOKEN_SECONDS = 10 * 60;
 export const OAUTH_AUTHORIZATION_CODE_SECONDS = 5 * 60;
 export const OAUTH_AUTHORIZATION_REQUEST_SECONDS = 10 * 60;
 
+const VERIFICATION_TIERS: Record<number, string> = {
+  0: "Basic",
+  1: "Premium",
+  2: "Gold",
+  3: "Platinum",
+  5: "Diamond",
+};
+
+export function getVerificationTier(level: number): string | undefined {
+  return VERIFICATION_TIERS[level];
+}
+
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -37,6 +49,11 @@ export type ActiveBhidSession = {
   displayName: string | null;
   username: string | null;
   avatarUrl: string | null;
+  verificationLevel: number;
+  walletAddress: string | null;
+  walletVerifiedAt: Date | null;
+  membershipTier: string;
+  membershipExpiresAt: Date | null;
 };
 
 export type OAuthTokenClaims = JwtPayload & {
@@ -184,16 +201,31 @@ export async function findActiveBhidSession(
        u.email,
        u.email_verified_at,
        u.auth_version,
+       u.verification_level,
        s.id AS session_id,
        p.display_name,
        p.username,
        p.avatar_key,
-       p.avatar_url
+       p.avatar_url,
+       p.wallet_address,
+       p.wallet_verified_at,
+       CASE
+         WHEN m.expires_at IS NOT NULL AND m.expires_at <= NOW()
+           THEN 'BASIC'
+         ELSE m.tier::text
+       END AS membership_tier,
+       CASE
+         WHEN m.expires_at IS NOT NULL AND m.expires_at <= NOW()
+           THEN NULL
+         ELSE m.expires_at
+       END AS membership_expires_at
      FROM sessions AS s
      JOIN users AS u
        ON u.id = s.user_id
      LEFT JOIN profiles AS p
        ON p.user_id = u.id
+     LEFT JOIN user_memberships AS m
+       ON m.user_id = u.id
      WHERE s.id = $1
        AND s.user_id = $2
        AND s.revoked_at IS NULL
@@ -221,6 +253,11 @@ export async function findActiveBhidSession(
     displayName: user.display_name,
     username: user.username,
     avatarUrl: getAvatarPublicUrl(user.avatar_key, user.avatar_url),
+    verificationLevel: user.verification_level,
+    walletAddress: user.wallet_address,
+    walletVerifiedAt: user.wallet_verified_at,
+    membershipTier: user.membership_tier ?? "BASIC",
+    membershipExpiresAt: user.membership_expires_at,
   };
 }
 
@@ -281,6 +318,37 @@ export function signOidcIdToken(
 
   if (scopes.includes("bhid")) {
     claims.bhid = session.bhid;
+  }
+
+  if (scopes.includes("verification")) {
+    claims.verification_level = session.verificationLevel;
+    const verificationTier = getVerificationTier(session.verificationLevel);
+
+    if (verificationTier) {
+      claims.verification_tier = verificationTier;
+    }
+  }
+
+  if (scopes.includes("wallet")) {
+    claims.wallet_linked = session.walletAddress !== null;
+    claims.wallet_verified =
+      session.walletAddress !== null && session.walletVerifiedAt !== null;
+
+    if (session.walletAddress) {
+      claims.wallet_address = session.walletAddress;
+    }
+    if (session.walletAddress && session.walletVerifiedAt) {
+      claims.wallet_verified_at = session.walletVerifiedAt.toISOString();
+    }
+  }
+
+  if (scopes.includes("membership")) {
+    claims.membership_tier = session.membershipTier;
+
+    if (session.membershipExpiresAt) {
+      claims.membership_expires_at =
+        session.membershipExpiresAt.toISOString();
+    }
   }
 
   return jwt.sign(claims, privateKey, {

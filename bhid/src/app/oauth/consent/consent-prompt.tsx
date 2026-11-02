@@ -16,6 +16,11 @@ const scopeDescriptions: Record<string, string> = {
   email: "View your email address and verification status",
   profile: "View your display name, username, and profile picture",
   bhid: "View your BHID identifier",
+  verification:
+    "View your BHID verification level and tier",
+  wallet:
+    "View your linked wallet address and whether it is verified",
+  membership: "View your BHID paid membership tier and expiry",
 };
 
 const REQUEST_ID_PATTERN =

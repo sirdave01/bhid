@@ -304,7 +304,14 @@ export async function POST(request: NextRequest) {
     const authorizationCode = codeResult.rows[0];
 
     // Locking the stored code makes redemption one-time even under concurrent requests.
-    const supportedScopes = new Set(["openid", "email", "profile", "bhid"]);
+    const supportedScopes = new Set([
+      "openid",
+      "email",
+      "profile",
+      "bhid",
+      "verification",
+      "wallet",
+    ]);
     const scopesAllowedNow =
       authorizationCode &&
       authorizationCode.scopes.every(
@@ -331,16 +338,31 @@ export async function POST(request: NextRequest) {
          u.email,
          u.email_verified_at,
          u.auth_version,
+         u.verification_level,
          s.id AS session_id,
          p.display_name,
          p.username,
          p.avatar_key,
-         p.avatar_url
+         p.avatar_url,
+         p.wallet_address,
+         p.wallet_verified_at,
+         CASE
+           WHEN m.expires_at IS NOT NULL AND m.expires_at <= NOW()
+             THEN 'BASIC'
+           ELSE m.tier::text
+         END AS membership_tier,
+         CASE
+           WHEN m.expires_at IS NOT NULL AND m.expires_at <= NOW()
+             THEN NULL
+           ELSE m.expires_at
+         END AS membership_expires_at
        FROM sessions AS s
        JOIN users AS u
          ON u.id = s.user_id
        LEFT JOIN profiles AS p
          ON p.user_id = u.id
+       LEFT JOIN user_memberships AS m
+         ON m.user_id = u.id
        WHERE s.id = $1
          AND s.user_id = $2
          AND s.revoked_at IS NULL
@@ -380,6 +402,11 @@ export async function POST(request: NextRequest) {
       displayName: user.display_name,
       username: user.username,
       avatarUrl: getAvatarPublicUrl(user.avatar_key, user.avatar_url),
+      verificationLevel: user.verification_level,
+      walletAddress: user.wallet_address,
+      walletVerifiedAt: user.wallet_verified_at,
+      membershipTier: user.membership_tier ?? "BASIC",
+      membershipExpiresAt: user.membership_expires_at,
     };
     const scopes: string[] = authorizationCode.scopes;
     const accessToken = signOAuthAccessToken(
