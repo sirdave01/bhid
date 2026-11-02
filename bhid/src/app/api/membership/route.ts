@@ -47,17 +47,24 @@ export async function GET(request: NextRequest) {
       pool.query(
         `SELECT
            CASE
-             WHEN expires_at IS NOT NULL AND expires_at <= NOW()
+             WHEN m.expires_at IS NOT NULL AND m.expires_at <= NOW()
                THEN 'BASIC'
-             ELSE tier::text
+             ELSE m.tier::text
            END AS tier,
            CASE
-             WHEN expires_at IS NOT NULL AND expires_at <= NOW()
+             WHEN m.expires_at IS NOT NULL AND m.expires_at <= NOW()
                THEN NULL
-             ELSE expires_at
-           END AS expires_at
-         FROM user_memberships
-         WHERE user_id = $1
+             ELSE m.expires_at
+           END AS expires_at,
+           u.verification_level,
+           p.display_name,
+           p.username
+         FROM user_memberships AS m
+         JOIN users AS u
+           ON u.id = m.user_id
+         LEFT JOIN profiles AS p
+           ON p.user_id = u.id
+         WHERE m.user_id = $1
          LIMIT 1`,
         [session.userId]
       ),
@@ -82,6 +89,9 @@ export async function GET(request: NextRequest) {
         membership: membershipResult.rows[0] ?? {
           tier: "BASIC",
           expires_at: null,
+          verification_level: 0,
+          display_name: null,
+          username: null,
         },
         wallet: {
           address: walletResult.rows[0]?.wallet_address ?? null,

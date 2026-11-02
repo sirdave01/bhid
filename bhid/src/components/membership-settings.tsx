@@ -2,13 +2,19 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 
-import MembershipBadge from "@/components/membership-badge";
+import ProfileVerificationBadges from "@/components/profile-verification-badges";
 
 const PAID_TIERS = ["PREMIUM", "GOLD", "PLATINUM", "DIAMOND"] as const;
 type PaidTier = (typeof PAID_TIERS)[number];
 
 type MembershipResponse = {
-  membership: { tier: string; expires_at: string | null };
+  membership: {
+    tier: string;
+    expires_at: string | null;
+    verification_level: number;
+    display_name: string | null;
+    username: string | null;
+  };
   wallet: { address: string | null; verified: boolean };
   payment: {
     configured: boolean;
@@ -130,8 +136,19 @@ export default function MembershipSettings() {
       {data ? (
         <section className="rounded-xl border border-zinc-800 bg-zinc-900 p-6">
           <h2 className="text-lg font-semibold">Current membership</h2>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <span className="font-medium">
+              {data.membership.display_name ||
+                (data.membership.username
+                  ? `@${data.membership.username}`
+                  : "Your account")}
+            </span>
+            <ProfileVerificationBadges
+              membershipTier={data.membership.tier}
+              verificationLevel={data.membership.verification_level}
+            />
+          </div>
           <div className="mt-3 flex flex-wrap items-center gap-3">
-            <MembershipBadge tier={data.membership.tier} />
             {data.membership.expires_at ? (
               <span className="text-sm text-zinc-400">
                 Expires {new Date(data.membership.expires_at).toLocaleString()}

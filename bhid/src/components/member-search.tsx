@@ -3,8 +3,7 @@
 import Image from "next/image";
 import { useState, type FormEvent } from "react";
 
-import MembershipBadge from "@/components/membership-badge";
-import VerificationBadge from "@/components/verification-badge";
+import ProfileVerificationBadges from "@/components/profile-verification-badges";
 
 type MemberSearchResult = {
   bhid: string;
@@ -166,13 +165,15 @@ export default function MemberSearch() {
                     label={user.displayName || user.username || user.bhid}
                   />
                   <div className="min-w-0">
-                    <p className="truncate font-medium">
-                      {user.displayName || user.username || user.bhid}
+                    <p className="flex min-w-0 items-center gap-1.5 font-medium">
+                      <span className="truncate">
+                        {user.displayName || user.username || user.bhid}
+                      </span>
+                      <ProfileVerificationBadges
+                        membershipTier={user.membershipTier}
+                        verificationLevel={user.verificationLevel}
+                      />
                     </p>
-                    <div className="mt-1 flex flex-wrap gap-2">
-                      <VerificationBadge level={user.verificationLevel} />
-                      <MembershipBadge tier={user.membershipTier} />
-                    </div>
                     {user.username && (
                       <p className="mt-1 truncate text-sm text-zinc-400">
                         @{user.username}

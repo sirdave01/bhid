@@ -64,11 +64,14 @@ async function DeveloperPortalContent() {
           </h2>
           <ol className="mt-4 list-decimal space-y-3 pl-5 text-sm text-zinc-300">
             <li>
-              Register below: choose a name and slug, select{" "}
-              <strong>Confidential</strong> for a server-side app or{" "}
-              <strong>Public</strong> for a browser app using PKCE, and enter
-              each exact callback URL. Use localhost for development and HTTPS
-              for deployed apps.
+              Register below: choose a name and slug, then choose the client
+              type. <strong>Confidential</strong> is for an app whose server
+              can safely store a secret (such as a traditional web backend).
+              <strong> Public</strong> is for apps that run on a user&apos;s
+              device or in their browser, where a secret cannot be kept private;
+              it uses PKCE instead. If unsure, choose Public for a browser-only
+              app. Enter each exact callback URL. Use localhost for development
+              and HTTPS for deployed apps.
             </li>
             <li>
               Allow only the scopes the app needs. The user must also approve
@@ -80,23 +83,49 @@ async function DeveloperPortalContent() {
             <li>
               Save the displayed client ID and, for confidential apps, the
               one-time client secret. Add these settings to your app&apos;s
-              server-side environment (for example, <code>.env.local</code>):
+              environment file or hosting-provider environment settings:
               <pre className="mt-2 overflow-x-auto rounded-md bg-zinc-950 p-3 font-mono text-xs text-zinc-200">
-                {`BHID_ISSUER=https://<your-bhid-domain>
+                {`BHID_ISSUER=https://auth.bytehaven.world
 BHID_CLIENT_ID=<client-id>
 BHID_CLIENT_SECRET=<server-only-secret>
 BHID_REDIRECT_URI=https://<your-app-domain>/auth/bhid/callback`}
               </pre>
-              Keep the client secret out of browser code and public environment
-              variables. Public clients do not use a client secret.
+              <span className="mt-2 block">
+                <code>BHID_ISSUER</code> is the base web address of the BHID
+                server that signs users in. For BHID, use exactly{" "}
+                <code>https://auth.bytehaven.world</code>. This is BHID&apos;s
+                issuer, not your app&apos;s address. Check the provider
+                discovery document at{" "}
+                <code>
+                  https://auth.bytehaven.world/.well-known/openid-configuration
+                </code>
+                if you want to see the sign-in endpoints your OIDC library
+                will discover automatically.
+              </span>
+              <span className="mt-2 block">
+                <code>BHID_CLIENT_ID</code> is copied from your registered BHID
+                application. <code>BHID_CLIENT_SECRET</code> is the secret
+                shown once when you create a Confidential client; keep it only
+                on your server and never in browser code or a
+                <code> NEXT_PUBLIC_</code> variable. Public clients leave out
+                the secret. <code>BHID_REDIRECT_URI</code> is the callback in
+                your app that receives the sign-in response; register that
+                exact same URL in BHID.
+              </span>
             </li>
             <li>
-              Configure your OIDC library with the issuer and discovery URL{" "}
-              <code>https://&lt;your-bhid-domain&gt;/.well-known/openid-configuration</code>.
+              Configure your OIDC library with the issuer{" "}
+              <code>https://auth.bytehaven.world</code>. Its discovery URL is{" "}
+              <code>
+                https://auth.bytehaven.world/.well-known/openid-configuration
+              </code>
+              .
               Set the same callback URL in both your application environment
               and the BHID registration. Send users through Authorization Code
               with S256 PKCE, then exchange the code and request UserInfo with
-              the granted access token.
+              the granted access token. Add the environment variables to the
+              server-side settings for every environment you use (development,
+              preview, and production), then restart or redeploy your app.
             </li>
           </ol>
           <p className="mt-4 text-xs text-zinc-400">

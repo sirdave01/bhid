@@ -10,8 +10,7 @@ import {
 } from "react";
 
 import AccountAvatar from "@/components/account-avatar";
-import MembershipBadge from "@/components/membership-badge";
-import VerificationBadge from "@/components/verification-badge";
+import ProfileVerificationBadges from "@/components/profile-verification-badges";
 
 type Profile = {
   displayName: string;
@@ -360,7 +359,15 @@ export default function ProfileSettings() {
 
         <div className="min-w-0 flex-1">
           <h3 className="break-words text-xl font-semibold">
-            {profile.displayName || "BHID User"}
+            <span className="inline-flex max-w-full items-center gap-1.5">
+              <span className="break-words">
+                {profile.displayName || "BHID User"}
+              </span>
+              <ProfileVerificationBadges
+                membershipTier={profile.membershipTier}
+                verificationLevel={profile.verificationLevel}
+              />
+            </span>
           </h3>
 
           <p className="mt-1 text-sm text-zinc-400">
@@ -368,11 +375,6 @@ export default function ProfileSettings() {
               ? `@${profile.username}`
               : "No username yet"}
           </p>
-          <div className="mt-2 flex flex-wrap gap-2">
-            <VerificationBadge level={profile.verificationLevel} />
-            <MembershipBadge tier={profile.membershipTier} />
-          </div>
-
           <p className="mt-2 text-xs text-zinc-400">
             {previewUrl
               ? "Previewing a selected picture. Upload to save it."
