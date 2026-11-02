@@ -26,6 +26,11 @@
 test.md
 BUILD_CHECKLIST.md
 
+# local database exports and backups
+/database/archive/
+*.dump
+*.backup
+
 # debug
 npm-debug.log*
 yarn-debug.log*
