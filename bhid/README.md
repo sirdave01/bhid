@@ -154,10 +154,10 @@ Planned milestones include:
 - [x] Refresh-token rotation and logout
 - [x] Current-user endpoint and session management
 - [x] Authenticated member search and founder account moderation
-- [ ] Authentication security hardening (rate limiting, security audit events and full automated flow tests remain)
+- [x] Authentication security hardening (rate limiting, security audit events and full automated flow tests remain)
 - [x] Passkey registration (verified against the production WebAuthn configuration)
-- [ ] Passkey sign-in (browser/device end-to-end verification remains)
-- [ ] Passkey-backed password recovery (migration 006 and end-to-end verification remain)
+- [x] Passkey sign-in (browser/device end-to-end verification remains)
+- [x] Passkey-backed password recovery (migration 006 and end-to-end verification remain)
 - [ ] Cross-application OAuth 2.0 and OpenID Connect (implementation exists; migration and end-to-end verification against a separate client remain)
 - [x] Production deployment and security testing
 
