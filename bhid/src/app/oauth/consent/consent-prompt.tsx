@@ -19,7 +19,7 @@ const scopeDescriptions: Record<string, string> = {
   verification:
     "View your BHID verification level and tier",
   wallet:
-    "View your linked wallet address and whether it is verified",
+    "View your linked wallet addresses and whether they are verified",
   membership: "View your BHID paid membership tier and expiry",
 };
 

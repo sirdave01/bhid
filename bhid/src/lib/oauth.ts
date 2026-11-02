@@ -8,25 +8,102 @@ import pool from "@/lib/db";
 import { hashToken, verifyAccessToken } from "@/lib/auth";
 import { getJwtConfig } from "@/lib/jwt-keys";
 import { getAvatarPublicUrl } from "@/lib/s3";
+import { getVerificationTier } from "@/lib/verification";
 
 export const OIDC_ACCESS_TOKEN_SECONDS = 10 * 60;
 export const OAUTH_AUTHORIZATION_CODE_SECONDS = 5 * 60;
 export const OAUTH_AUTHORIZATION_REQUEST_SECONDS = 10 * 60;
 
-const VERIFICATION_TIERS: Record<number, string> = {
-  0: "Basic",
-  1: "Premium",
-  2: "Gold",
-  3: "Platinum",
-  5: "Diamond",
-};
-
-export function getVerificationTier(level: number): string | undefined {
-  return VERIFICATION_TIERS[level];
-}
-
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export type OAuthWallet = {
+  network: string;
+  address: string;
+  label: string | null;
+  is_primary: boolean;
+  connection_type: string;
+  verified: boolean;
+  verified_at: string | null;
+};
+
+export function getPrimaryOAuthWallet(
+  wallets: OAuthWallet[]
+): OAuthWallet | null {
+  return wallets.find((wallet) => wallet.is_primary) ?? wallets[0] ?? null;
+}
+
+export type OAuthSessionRow = QueryResultRow & {
+  user_id: string;
+  session_id: string;
+  auth_version: number;
+  bhid: string;
+  email: string;
+  email_verified_at: Date | null;
+  verification_level: number;
+  display_name: string | null;
+  username: string | null;
+  avatar_key: string | null;
+  avatar_url: string | null;
+  wallet_address: string | null;
+  wallet_verified_at: Date | null;
+  wallets: OAuthWallet[];
+  membership_tier: string | null;
+  membership_expires_at: Date | null;
+};
+
+export const OAUTH_WALLETS_SELECT = `
+  COALESCE(
+    (
+      SELECT json_agg(
+        json_build_object(
+          'network', wallet_data.network,
+          'address', wallet_data.address,
+          'label', wallet_data.label,
+          'is_primary', wallet_data.is_primary,
+          'connection_type', wallet_data.connection_type,
+          'verified', wallet_data.verified_at IS NOT NULL,
+          'verified_at', wallet_data.verified_at
+        )
+        ORDER BY wallet_data.is_primary DESC, wallet_data.created_at ASC NULLS LAST
+      )
+      FROM (
+        SELECT
+          w.network,
+          w.address,
+          w.label,
+          (w.is_primary OR COALESCE(w.address = p.wallet_address, FALSE)) AS is_primary,
+          w.connection_type::text AS connection_type,
+          CASE
+            WHEN w.address = p.wallet_address
+              THEN COALESCE(w.verified_at, p.wallet_verified_at)
+            ELSE w.verified_at
+          END AS verified_at,
+          w.created_at
+        FROM wallets AS w
+        WHERE w.user_id = u.id
+
+        UNION ALL
+
+        SELECT
+          'SOLANA',
+          p.wallet_address,
+          NULL::varchar,
+          TRUE,
+          'MANUAL',
+          p.wallet_verified_at,
+          p.wallet_verified_at
+        WHERE p.wallet_address IS NOT NULL
+          AND NOT EXISTS (
+            SELECT 1
+            FROM wallets AS w
+            WHERE w.user_id = u.id
+              AND w.address = p.wallet_address
+          )
+      ) AS wallet_data
+    ),
+    '[]'::json
+  ) AS wallets`;
 
 export type OAuthApplication = QueryResultRow & {
   id: string;
@@ -52,6 +129,7 @@ export type ActiveBhidSession = {
   verificationLevel: number;
   walletAddress: string | null;
   walletVerifiedAt: Date | null;
+  wallets: OAuthWallet[];
   membershipTier: string;
   membershipExpiresAt: Date | null;
 };
@@ -194,7 +272,7 @@ export async function findActiveBhidSession(
     return null;
   }
 
-  const result = await pool.query(
+  const result = await pool.query<OAuthSessionRow>(
     `SELECT
        u.id AS user_id,
        u.bhid,
@@ -209,6 +287,7 @@ export async function findActiveBhidSession(
        p.avatar_url,
        p.wallet_address,
        p.wallet_verified_at,
+       ${OAUTH_WALLETS_SELECT},
        CASE
          WHEN m.expires_at IS NOT NULL AND m.expires_at <= NOW()
            THEN 'BASIC'
@@ -256,6 +335,7 @@ export async function findActiveBhidSession(
     verificationLevel: user.verification_level,
     walletAddress: user.wallet_address,
     walletVerifiedAt: user.wallet_verified_at,
+    wallets: user.wallets,
     membershipTier: user.membership_tier ?? "BASIC",
     membershipExpiresAt: user.membership_expires_at,
   };
@@ -330,15 +410,25 @@ export function signOidcIdToken(
   }
 
   if (scopes.includes("wallet")) {
-    claims.wallet_linked = session.walletAddress !== null;
-    claims.wallet_verified =
-      session.walletAddress !== null && session.walletVerifiedAt !== null;
+    const primaryWallet = getPrimaryOAuthWallet(session.wallets);
+    const walletAddress =
+      primaryWallet?.address ?? session.walletAddress;
+    const walletVerified =
+      primaryWallet?.verified ??
+      (walletAddress !== null && session.walletVerifiedAt !== null);
+    const walletVerifiedAt =
+      primaryWallet?.verified_at ??
+      session.walletVerifiedAt?.toISOString() ??
+      null;
 
-    if (session.walletAddress) {
-      claims.wallet_address = session.walletAddress;
+    claims.wallet_linked = walletAddress !== null;
+    claims.wallet_verified = walletVerified;
+
+    if (walletAddress) {
+      claims.wallet_address = walletAddress;
     }
-    if (session.walletAddress && session.walletVerifiedAt) {
-      claims.wallet_verified_at = session.walletVerifiedAt.toISOString();
+    if (walletVerified && walletVerifiedAt) {
+      claims.wallet_verified_at = walletVerifiedAt;
     }
   }
 

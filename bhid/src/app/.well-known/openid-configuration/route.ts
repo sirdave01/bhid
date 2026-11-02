@@ -51,6 +51,7 @@ export async function GET() {
         "verification_level",
         "verification_tier",
         "wallet_address",
+        "wallets",
         "wallet_linked",
         "wallet_verified",
         "wallet_verified_at",

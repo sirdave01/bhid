@@ -11,6 +11,7 @@ import {
 
 import AccountAvatar from "@/components/account-avatar";
 import MembershipBadge from "@/components/membership-badge";
+import VerificationBadge from "@/components/verification-badge";
 
 type Profile = {
   displayName: string;
@@ -18,6 +19,7 @@ type Profile = {
   bio: string;
   avatarUrl: string;
   dateOfBirth: string;
+  verificationLevel: number;
   membershipTier: string;
 };
 
@@ -27,6 +29,7 @@ const emptyProfile: Profile = {
   bio: "",
   avatarUrl: "",
   dateOfBirth: "",
+  verificationLevel: 0,
   membershipTier: "BASIC",
 };
 
@@ -133,6 +136,11 @@ export default function ProfileSettings() {
           bio: getString(data.bio),
           avatarUrl: getString(data.avatarUrl),
           dateOfBirth: getString(data.dateOfBirth),
+          verificationLevel:
+            typeof data.verificationLevel === "number" &&
+            Number.isInteger(data.verificationLevel)
+              ? data.verificationLevel
+              : 0,
           membershipTier: getString(data.membershipTier) || "BASIC",
         });
       } catch (err) {
@@ -360,7 +368,8 @@ export default function ProfileSettings() {
               ? `@${profile.username}`
               : "No username yet"}
           </p>
-          <div className="mt-2">
+          <div className="mt-2 flex flex-wrap gap-2">
+            <VerificationBadge level={profile.verificationLevel} />
             <MembershipBadge tier={profile.membershipTier} />
           </div>
 

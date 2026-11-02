@@ -4,12 +4,14 @@ import Image from "next/image";
 import { useState, type FormEvent } from "react";
 
 import MembershipBadge from "@/components/membership-badge";
+import VerificationBadge from "@/components/verification-badge";
 
 type MemberSearchResult = {
   bhid: string;
   username: string | null;
   displayName: string | null;
   avatarUrl: string | null;
+  verificationLevel: number;
   membershipTier: string;
 };
 
@@ -25,6 +27,8 @@ function isMemberSearchResult(value: unknown): value is MemberSearchResult {
     (typeof value.displayName === "string" || value.displayName === null) &&
     "avatarUrl" in value &&
     (typeof value.avatarUrl === "string" || value.avatarUrl === null) &&
+    "verificationLevel" in value &&
+    typeof value.verificationLevel === "number" &&
     "membershipTier" in value &&
     typeof value.membershipTier === "string"
   );
@@ -165,7 +169,8 @@ export default function MemberSearch() {
                     <p className="truncate font-medium">
                       {user.displayName || user.username || user.bhid}
                     </p>
-                    <div className="mt-1">
+                    <div className="mt-1 flex flex-wrap gap-2">
+                      <VerificationBadge level={user.verificationLevel} />
                       <MembershipBadge tier={user.membershipTier} />
                     </div>
                     {user.username && (

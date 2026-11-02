@@ -8,7 +8,7 @@ const OPTIONAL_SCOPES = [
   ["profile", "Display name, username, and profile picture"],
   ["bhid", "Human-facing BHID identifier"],
   ["verification", "Identity verification level"],
-  ["wallet", "Linked wallet address and ownership status"],
+  ["wallet", "Linked wallet addresses and ownership status"],
   ["membership", "Paid membership tier and expiry"],
 ] as const;
 

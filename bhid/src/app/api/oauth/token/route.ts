@@ -8,7 +8,9 @@ import { hashToken } from "@/lib/auth";
 import {
   findOAuthApplication,
   hasValidClientSecret,
+  OAUTH_WALLETS_SELECT,
   OIDC_ACCESS_TOKEN_SECONDS,
+  type OAuthSessionRow,
   signOAuthAccessToken,
   signOidcIdToken,
 } from "@/lib/oauth";
@@ -311,6 +313,7 @@ export async function POST(request: NextRequest) {
       "bhid",
       "verification",
       "wallet",
+      "membership",
     ]);
     const scopesAllowedNow =
       authorizationCode &&
@@ -331,7 +334,7 @@ export async function POST(request: NextRequest) {
       return tokenError("invalid_grant", 400, corsOrigin);
     }
 
-    const sessionResult = await client.query(
+    const sessionResult = await client.query<OAuthSessionRow>(
       `SELECT
          u.id AS user_id,
          u.bhid,
@@ -346,6 +349,7 @@ export async function POST(request: NextRequest) {
          p.avatar_url,
          p.wallet_address,
          p.wallet_verified_at,
+         ${OAUTH_WALLETS_SELECT},
          CASE
            WHEN m.expires_at IS NOT NULL AND m.expires_at <= NOW()
              THEN 'BASIC'
@@ -405,6 +409,7 @@ export async function POST(request: NextRequest) {
       verificationLevel: user.verification_level,
       walletAddress: user.wallet_address,
       walletVerifiedAt: user.wallet_verified_at,
+      wallets: user.wallets,
       membershipTier: user.membership_tier ?? "BASIC",
       membershipExpiresAt: user.membership_expires_at,
     };

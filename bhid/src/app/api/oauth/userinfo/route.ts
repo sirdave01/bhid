@@ -3,10 +3,12 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   findActiveBhidSession,
   findOAuthApplication,
-  getVerificationTier,
+  getPrimaryOAuthWallet,
   readOAuthTokenAudience,
+  type OAuthWallet,
   verifyOAuthToken,
 } from "@/lib/oauth";
+import { getVerificationTier } from "@/lib/verification";
 
 function unauthorized() {
   return NextResponse.json(
@@ -84,7 +86,7 @@ export async function GET(request: NextRequest) {
     }
 
     const grantedScopes = new Set(scopes);
-    const userInfo: Record<string, string | boolean | number> = {
+    const userInfo: Record<string, string | boolean | number | OAuthWallet[]> = {
       sub: user.userId,
     };
 
@@ -121,15 +123,26 @@ export async function GET(request: NextRequest) {
     }
 
     if (grantedScopes.has("wallet")) {
-      userInfo.wallet_linked = user.walletAddress !== null;
-      userInfo.wallet_verified =
-        user.walletAddress !== null && user.walletVerifiedAt !== null;
+      const primaryWallet = getPrimaryOAuthWallet(user.wallets);
+      const walletAddress =
+        primaryWallet?.address ?? user.walletAddress;
+      const walletVerified =
+        primaryWallet?.verified ??
+        (walletAddress !== null && user.walletVerifiedAt !== null);
+      const walletVerifiedAt =
+        primaryWallet?.verified_at ??
+        user.walletVerifiedAt?.toISOString() ??
+        null;
 
-      if (user.walletAddress) {
-        userInfo.wallet_address = user.walletAddress;
+      userInfo.wallet_linked = walletAddress !== null;
+      userInfo.wallet_verified = walletVerified;
+      userInfo.wallets = user.wallets;
+
+      if (walletAddress) {
+        userInfo.wallet_address = walletAddress;
       }
-      if (user.walletAddress && user.walletVerifiedAt) {
-        userInfo.wallet_verified_at = user.walletVerifiedAt.toISOString();
+      if (walletVerified && walletVerifiedAt) {
+        userInfo.wallet_verified_at = walletVerifiedAt;
       }
     }
 

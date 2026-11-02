@@ -120,6 +120,41 @@ export async function POST(request: NextRequest) {
            updated_at = NOW()`,
       [session.userId, challenge.wallet_address]
     );
+
+    await client.query(
+      `UPDATE wallets
+       SET is_primary = FALSE
+       WHERE user_id = $1
+         AND network = 'SOLANA'
+         AND is_primary`,
+      [session.userId]
+    );
+    const walletResult = await client.query(
+      `INSERT INTO wallets (
+         user_id,
+         network,
+         address,
+         address_normalized,
+         is_primary,
+         verified_at
+       )
+       VALUES ($1, 'SOLANA', $2, $2, TRUE, NOW())
+       ON CONFLICT (network, address_normalized) DO UPDATE
+       SET is_primary = TRUE,
+           verified_at = NOW()
+       WHERE wallets.user_id = EXCLUDED.user_id
+       RETURNING id`,
+      [session.userId, challenge.wallet_address]
+    );
+
+    if (!walletResult.rows[0]) {
+      await client.query("ROLLBACK");
+      return NextResponse.json(
+        { success: false, message: "That wallet is already linked to an account" },
+        { status: 409 }
+      );
+    }
+
     await client.query("COMMIT");
 
     return NextResponse.json({

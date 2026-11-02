@@ -10,6 +10,7 @@ type MemberSearchResult = {
   display_name: string | null;
   avatar_key: string | null;
   avatar_url: string | null;
+  verification_level: number;
   membership_tier: string | null;
 };
 
@@ -65,6 +66,7 @@ export async function POST(request: NextRequest) {
          p.display_name,
          p.avatar_key,
          p.avatar_url,
+         u.verification_level,
          CASE
            WHEN m.expires_at IS NOT NULL AND m.expires_at <= NOW()
              THEN 'BASIC'
@@ -104,6 +106,7 @@ export async function POST(request: NextRequest) {
           username: user.username,
           displayName: user.display_name,
           avatarUrl: getAvatarPublicUrl(user.avatar_key, user.avatar_url),
+          verificationLevel: user.verification_level,
           membershipTier: user.membership_tier ?? "BASIC",
         })),
       },

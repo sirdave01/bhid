@@ -14,6 +14,7 @@ type ProfileRow = {
   date_of_birth: string | Date | null;
   wallet_address: string | null;
   wallet_verified_at: Date | null;
+  verification_level: number;
   membership_tier: string | null;
 };
 
@@ -34,6 +35,7 @@ export async function GET(request: NextRequest) {
 
     const result = await pool.query<ProfileRow>(
       `SELECT
+         u.verification_level,
          display_name,
          username,
          bio,
@@ -75,6 +77,7 @@ export async function GET(request: NextRequest) {
             : profile?.date_of_birth ?? "",
         walletAddress: profile?.wallet_address ?? null,
         walletVerifiedAt: profile?.wallet_verified_at?.toISOString() ?? null,
+        verificationLevel: profile?.verification_level ?? 0,
         membershipTier: profile?.membership_tier ?? "BASIC",
       },
     });
