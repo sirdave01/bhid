@@ -9,7 +9,7 @@ const verificationStyles: Record<string, string> = {
   Premium: "text-sky-400",
   Gold: "text-amber-400",
   Platinum: "text-slate-200",
-  Diamond: "text-green-400",
+  Diamond: "text-yellow-400",
 };
 
 export default function VerificationBadge({ level }: Props) {
