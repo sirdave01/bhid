@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { getRequestSession } from "@/lib/account-session";
 import { getAppBaseUrl } from "@/lib/app-base-url";
+import { isFounderAccount } from "@/lib/founder-access";
 import pool from "@/lib/db";
 import {
   getHbtPaymentConfig,
@@ -76,6 +77,7 @@ export async function POST(
   }
 
   try {
+    const founder = isFounderAccount(session);
     const membershipResult = await pool.query<{ role_key: string }>(
       `SELECT role_key
        FROM public.organization_members
@@ -83,7 +85,10 @@ export async function POST(
        LIMIT 1`,
       [organizationId, session.userId]
     );
-    if (!["owner", "admin"].includes(membershipResult.rows[0]?.role_key ?? "")) {
+    if (
+      !founder &&
+      !["owner", "admin"].includes(membershipResult.rows[0]?.role_key ?? "")
+    ) {
       return NextResponse.json({ error: "not_found" }, { status: 404 });
     }
 

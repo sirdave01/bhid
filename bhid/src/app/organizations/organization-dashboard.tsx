@@ -75,6 +75,7 @@ type FounderOrganizationRow = {
   name: string;
   slug: string;
   status: string;
+  plan_name: string | null;
   member_count: string;
   application_count: string;
 };
@@ -1152,6 +1153,7 @@ async function FounderDashboard() {
          o.name,
          o.slug,
          o.status,
+         active_subscription.plan_name,
          (SELECT COUNT(*)::text
             FROM public.organization_members AS m
             WHERE m.organization_id = o.id) AS member_count,
@@ -1159,6 +1161,15 @@ async function FounderDashboard() {
             FROM public.organization_applications AS oa
             WHERE oa.organization_id = o.id) AS application_count
        FROM public.organizations AS o
+       LEFT JOIN LATERAL (
+         SELECT p.name AS plan_name
+         FROM public.subscriptions AS s
+         LEFT JOIN public.subscription_plans AS p ON p.id = s.plan_id
+         WHERE s.organization_id = o.id
+           AND s.status IN ('INCOMPLETE', 'TRIALING', 'ACTIVE', 'PAST_DUE')
+         ORDER BY s.created_at DESC
+         LIMIT 1
+       ) AS active_subscription ON true
        ORDER BY o.created_at DESC, o.name`
     ),
     pool.query<FounderApplicationRow>(
@@ -1332,27 +1343,91 @@ async function FounderDashboard() {
       </section>
 
       <section className="mt-8 rounded-xl border border-zinc-800 bg-zinc-900/40 p-5">
+        <h2 className="text-xl font-semibold">Organization plans</h2>
+        <p className="mt-2 text-sm text-zinc-400">
+          Select any active plan for an organization. Paid plans are activated
+          only after the HBT payment is verified.
+        </p>
+        <div className="mt-5 grid gap-4 lg:grid-cols-2">
+          {organizationsResult.rows.map((organization) => (
+            <article
+              className="rounded-lg border border-zinc-800 bg-zinc-950/40 p-4"
+              key={organization.id}
+            >
+              <h3 className="font-medium">{organization.name}</h3>
+              <p className="mt-1 text-xs text-zinc-500">
+                Current plan: {organization.plan_name ?? "None"}
+              </p>
+              {organization.status === "ACTIVE" ? (
+                plansResult.rows.some((plan) => plan.is_active) ? (
+                  <div className="mt-4">
+                    <OrganizationPlanSelector
+                      currentPlanName={organization.plan_name}
+                      organizationId={organization.id}
+                      plans={plansResult.rows
+                        .filter((plan) => plan.is_active)
+                        .map((plan) => ({
+                          id: plan.id,
+                          name: plan.name,
+                          category: plan.plan_category,
+                          description: plan.description,
+                          price: plan.monthly_price_hbt,
+                          monthlyMauLimit: plan.monthly_mau_limit,
+                          monthlyApiLimit: plan.monthly_api_limit,
+                          applicationIntegrationLimit:
+                            plan.application_integration_limit,
+                          features: plan.feature_matrix,
+                        }))}
+                    />
+                  </div>
+                ) : (
+                  <p className="mt-3 text-sm text-zinc-500">
+                    No active plans are configured.
+                  </p>
+                )
+              ) : (
+                <p className="mt-3 text-sm text-amber-200">
+                  Activate this organization before selecting a plan.
+                </p>
+              )}
+            </article>
+          ))}
+          {organizationsResult.rows.length === 0 && (
+            <p className="text-sm text-zinc-500">
+              No organizations are available for plan selection.
+            </p>
+          )}
+        </div>
+      </section>
+
+      <section className="mt-8 rounded-xl border border-zinc-800 bg-zinc-900/40 p-5">
         <h2 className="text-xl font-semibold">Outstanding invoices</h2>
         <ul className="mt-4 divide-y divide-zinc-800 text-sm">
           {invoicesResult.rows.map((invoice) => (
             <li
-              className="flex flex-wrap justify-between gap-2 py-3"
+              className="space-y-2 border-b border-zinc-800 py-3 last:border-0"
               key={invoice.invoice_number}
             >
-              <span>
-                {invoice.invoice_number} · {invoice.organization_name} ·{" "}
-                {invoice.status}
-              </span>
-              <span className="text-zinc-400">
-                {formatHbt(invoice.amount_hbt)} ·{" "}
-                {invoice.due_at ? formatDate(invoice.due_at) : "No due date"}
-              </span>
-              <Link
-                className="text-indigo-300 underline"
-                href={`/api/organizations/${invoice.organization_id}/invoices/${invoice.id}`}
-              >
-                Download
-              </Link>
+              <div className="flex flex-wrap justify-between gap-2">
+                <span>
+                  {invoice.invoice_number} · {invoice.organization_name} ·{" "}
+                  {invoice.status}
+                </span>
+                <span className="text-zinc-400">
+                  {formatHbt(invoice.amount_hbt)} ·{" "}
+                  {invoice.due_at ? formatDate(invoice.due_at) : "No due date"}
+                </span>
+                <Link
+                  className="text-indigo-300 underline"
+                  href={`/api/organizations/${invoice.organization_id}/invoices/${invoice.id}`}
+                >
+                  Download
+                </Link>
+              </div>
+              <OrganizationInvoicePayment
+                invoiceId={invoice.id}
+                organizationId={invoice.organization_id}
+              />
             </li>
           ))}
           {invoicesResult.rows.length === 0 && (
