@@ -84,6 +84,11 @@ async function DeveloperPortalContent() {
               Save the displayed client ID and, for confidential apps, the
               one-time client secret. Add these settings to your app&apos;s
               environment file or hosting-provider environment settings:
+              <span className="mt-2 block">
+                BHID generates the client ID and (for confidential clients)
+                the client secret when you register the application. You do
+                not create them in the third-party app.
+              </span>
               <pre className="mt-2 overflow-x-auto rounded-md bg-zinc-950 p-3 font-mono text-xs text-zinc-200">
                 {`BHID_ISSUER=https://auth.bytehaven.world
 BHID_CLIENT_ID=<client-id>

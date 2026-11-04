@@ -24,7 +24,7 @@ type Props = { application: ApplicationDetails };
 function apiError(payload: unknown) {
   if (typeof payload === "object" && payload !== null && "error" in payload) {
     if (payload.error === "invalid_application") {
-      return "Check the application details, callback URLs, and scopes.";
+      return "Check the application details and scopes. Callback URLs must be complete URLs only, one per line (do not include BHID_REDIRECT_URI= or other variable names).";
     }
   }
   return "The request could not be completed.";
@@ -165,6 +165,10 @@ export default function DeveloperApplicationSettings({ application }: Props) {
           </label>
           <label className="block text-sm">
             Callback URLs (one exact URL per line)
+            <p className="mt-1 text-xs text-zinc-400">
+              Enter only the full callback URL, not an environment-variable
+              assignment. The BHID issuer URL is not a callback URL.
+            </p>
             <textarea className="mt-1 w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 font-mono text-xs" onChange={(event) => setRedirectUris(event.target.value)} required rows={4} value={redirectUris} />
           </label>
           <fieldset>

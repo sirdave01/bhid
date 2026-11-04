@@ -30,7 +30,9 @@ function readMessage(payload: unknown) {
     }
     if (error === "slug_already_exists") return "That application slug is already in use.";
     if (error === "application_limit_reached") return "You can register up to 20 applications.";
-    if (error === "invalid_application") return "Check the application details and callback URLs.";
+    if (error === "invalid_application") {
+      return "Check the application details. Callback URLs must be complete URLs only, one per line (do not include BHID_REDIRECT_URI= or other variable names).";
+    }
   }
 
   return "The request could not be completed. Please try again.";
@@ -243,7 +245,7 @@ export default function DeveloperApplications() {
                 )
               }
               placeholder="my-storefront"
-              pattern="[a-z0-9][a-z0-9-]{1,62}"
+              pattern="[a-z0-9](?:[a-z0-9]|-){1,62}"
               required
               value={slug}
             />
@@ -272,6 +274,13 @@ export default function DeveloperApplications() {
           </label>
           <label className="block text-sm">
             Callback URLs (one exact URL per line)
+            <p className="mt-1 text-xs text-zinc-400">
+              Enter only the full callback URL, not an environment-variable
+              assignment. For example, enter{" "}
+              <code>http://localhost:3000/auth/bhid/callback</code>, not{" "}
+              <code>BHID_REDIRECT_URI=...</code>. The BHID issuer URL is not a
+              callback URL.
+            </p>
             <textarea
               className="mt-1 w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 font-mono text-xs"
               onChange={(event) => setRedirectUris(event.target.value)}
