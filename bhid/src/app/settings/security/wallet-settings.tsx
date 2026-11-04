@@ -198,6 +198,13 @@ export default function WalletSettings() {
     window.location.assign(phantomUrl);
   }
 
+  function openInBitget() {
+    const bitgetUrl = new URL("https://bkcode.vip/");
+    bitgetUrl.searchParams.set("action", "dapp");
+    bitgetUrl.searchParams.set("url", window.location.href);
+    window.location.assign(bitgetUrl);
+  }
+
   async function connectAndLink(option: WalletOption) {
     setBusy(true);
     setMessage("");
@@ -329,16 +336,26 @@ export default function WalletSettings() {
             <div className="rounded-lg border border-zinc-700 bg-zinc-950 p-4 text-sm text-zinc-300">
               <p>
                 No compatible wallet was detected. For Phantom, open this page
-                in the Phantom app. For Bitget Wallet or another Solana wallet,
-                open BHID in that wallet&apos;s DApp browser.
+                in the Phantom app or open it in Bitget Wallet&apos;s DApp
+                browser. Other Solana wallets can be used from their DApp
+                browser as well.
               </p>
-              <button
-                className="mt-3 inline-block font-medium text-white underline"
-                onClick={openInPhantom}
-                type="button"
-              >
-                Open BHID in Phantom
-              </button>
+              <div className="mt-3 flex flex-wrap gap-4">
+                <button
+                  className="font-medium text-white underline"
+                  onClick={openInPhantom}
+                  type="button"
+                >
+                  Open BHID in Phantom
+                </button>
+                <button
+                  className="font-medium text-white underline"
+                  onClick={openInBitget}
+                  type="button"
+                >
+                  Open BHID in Bitget Wallet
+                </button>
+              </div>
             </div>
           )}
         </div>

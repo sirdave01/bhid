@@ -100,7 +100,7 @@ export async function POST(
       return NextResponse.json({ error: "plan_unavailable" }, { status: 409 });
     }
 
-    if (BigInt(plan.monthly_price_hbt) === BigInt(0)) {
+    if (founder || BigInt(plan.monthly_price_hbt) === BigInt(0)) {
       await client.query(
         `UPDATE public.subscriptions
          SET status = 'CANCELED', canceled_at = now(), updated_at = now()
