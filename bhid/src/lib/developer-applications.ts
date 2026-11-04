@@ -84,7 +84,7 @@ export function parseDeveloperApplicationUpdate(
   value: unknown
 ): Pick<
   DeveloperApplicationInput,
-  "name" | "description" | "redirectUris" | "allowedScopes"
+  "name" | "slug" | "description" | "redirectUris" | "allowedScopes"
 > | null {
   if (typeof value !== "object" || value === null) {
     return null;
@@ -92,6 +92,7 @@ export function parseDeveloperApplicationUpdate(
 
   const body = value as Record<string, unknown>;
   const name = typeof body.name === "string" ? body.name.trim() : "";
+  const slug = typeof body.slug === "string" ? body.slug.trim() : "";
   const description =
     typeof body.description === "string" && body.description.trim()
       ? body.description.trim()
@@ -102,6 +103,7 @@ export function parseDeveloperApplicationUpdate(
   if (
     !name ||
     name.length > 128 ||
+    !/^[a-z0-9][a-z0-9-]{1,62}$/.test(slug) ||
     (description !== null && description.length > 1000) ||
     !Array.isArray(redirectUris) ||
     redirectUris.length < 1 ||
@@ -125,6 +127,7 @@ export function parseDeveloperApplicationUpdate(
 
   return {
     name,
+    slug,
     description,
     redirectUris: redirectUris as string[],
     allowedScopes: allowedScopes as string[],

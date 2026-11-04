@@ -23,6 +23,9 @@ type Props = { application: ApplicationDetails };
 
 function apiError(payload: unknown) {
   if (typeof payload === "object" && payload !== null && "error" in payload) {
+    if (payload.error === "slug_already_exists") {
+      return "That application slug is already in use.";
+    }
     if (payload.error === "invalid_application") {
       return "Check the application details and scopes. Callback URLs must be complete URLs only, one per line (do not include BHID_REDIRECT_URI= or other variable names).";
     }
@@ -32,6 +35,7 @@ function apiError(payload: unknown) {
 
 export default function DeveloperApplicationSettings({ application }: Props) {
   const [name, setName] = useState(application.name);
+  const [slug, setSlug] = useState(application.slug);
   const [description, setDescription] = useState(application.description ?? "");
   const [redirectUris, setRedirectUris] = useState(
     application.redirectUris.join("\n")
@@ -63,6 +67,7 @@ export default function DeveloperApplicationSettings({ application }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name,
+          slug,
           description,
           redirectUris: redirectUris.split(/\r?\n/).map((uri) => uri.trim()).filter(Boolean),
           allowedScopes,
@@ -154,10 +159,34 @@ export default function DeveloperApplicationSettings({ application }: Props) {
 
       <section className="rounded-xl border border-zinc-800 bg-zinc-900 p-6">
         <h2 className="text-lg font-semibold">Edit application</h2>
+        <p className="mt-2 text-sm text-zinc-400">
+          Saving details does not change this application&apos;s client ID or
+          client secret.
+        </p>
         <form className="mt-4 space-y-4" onSubmit={(event) => void updateApplication(event)}>
           <label className="block text-sm">
             Application name
             <input className="mt-1 w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2" maxLength={128} onChange={(event) => setName(event.target.value)} required value={name} />
+          </label>
+          <label className="block text-sm">
+            Application slug
+            <input
+              className="mt-1 w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 font-mono"
+              maxLength={63}
+              onChange={(event) =>
+                setSlug(
+                  event.target.value
+                    .toLowerCase()
+                    .replace(/[^a-z0-9-]/g, "")
+                )
+              }
+              pattern="[a-z0-9](?:[a-z0-9]|-){1,62}"
+              required
+              value={slug}
+            />
+            <span className="mt-1 block text-xs text-zinc-400">
+              2–63 lowercase letters, numbers, or hyphens.
+            </span>
           </label>
           <label className="block text-sm">
             Description

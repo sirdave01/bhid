@@ -190,20 +190,31 @@ export default function DeveloperApplications() {
         ) : (
           <ul className="mt-4 divide-y divide-zinc-800">
             {applications.map((application) => (
-              <li className="py-4" key={application.id}>
+              <li
+                className="flex flex-wrap items-center justify-between gap-3 py-4"
+                key={application.id}
+              >
+                <div>
+                  <Link
+                    className="font-medium text-white hover:underline"
+                    href={`/developers/${application.id}`}
+                  >
+                    {application.name}
+                  </Link>
+                  <p className="mt-1 break-all font-mono text-xs text-zinc-400">
+                    {application.client_id}
+                  </p>
+                  <p className="mt-1 text-xs text-zinc-500">
+                    {application.client_type.toLowerCase()} ·{" "}
+                    {application.status.toLowerCase()}
+                  </p>
+                </div>
                 <Link
-                  className="font-medium text-white hover:underline"
+                  className="rounded-md border border-zinc-600 px-3 py-2 text-sm text-zinc-200 hover:bg-zinc-800"
                   href={`/developers/${application.id}`}
                 >
-                  {application.name}
+                  Edit application
                 </Link>
-                <p className="mt-1 break-all font-mono text-xs text-zinc-400">
-                  {application.client_id}
-                </p>
-                <p className="mt-1 text-xs text-zinc-500">
-                  {application.client_type.toLowerCase()} ·{" "}
-                  {application.status.toLowerCase()}
-                </p>
               </li>
             ))}
           </ul>

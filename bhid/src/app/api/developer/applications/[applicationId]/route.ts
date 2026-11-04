@@ -125,10 +125,11 @@ export async function PATCH(
     const result = await pool.query(
       `UPDATE applications
        SET name = $3,
-           description = $4,
-           redirect_uris = $5,
-           allowed_scopes = $6,
-           status = COALESCE($7::public.application_status, status),
+           slug = $4,
+           description = $5,
+           redirect_uris = $6,
+           allowed_scopes = $7,
+           status = COALESCE($8::public.application_status, status),
            updated_at = NOW()
        WHERE id = $1
          AND owner_user_id = $2
@@ -139,6 +140,7 @@ export async function PATCH(
         applicationId,
         session.userId,
         input.name,
+        input.slug,
         input.description,
         input.redirectUris,
         input.allowedScopes,
@@ -155,6 +157,12 @@ export async function PATCH(
       { headers: { "Cache-Control": "no-store" } }
     );
   } catch (error) {
+    const databaseError = error as { code?: string };
+
+    if (databaseError.code === "23505") {
+      return NextResponse.json({ error: "slug_already_exists" }, { status: 409 });
+    }
+
     console.error("Developer application update failed:", error);
     return NextResponse.json({ error: "server_error" }, { status: 500 });
   }
