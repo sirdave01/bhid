@@ -39,7 +39,10 @@ function getErrorMessage(payload: unknown) {
       case "payment_pending":
         return "The payment is not finalized yet. Wait a little and submit the same signature again.";
       case "payment_not_valid":
-        return "BHID could not verify this as the exact HBT payment for the selected tier.";
+        return "BHID could not verify this HBT payment: " +
+          ("message" in payload && typeof payload.message === "string"
+            ? payload.message
+            : "the transaction does not match the selected tier.");
       case "payment_already_used":
         return "This transaction has already been used for a membership.";
       case "verified_wallet_required":
