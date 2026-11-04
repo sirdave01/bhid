@@ -229,14 +229,13 @@ export default function WalletSettings() {
         throw new Error("The wallet verification challenge was invalid.");
       }
 
-      const signMessage = option.provider.signMessage;
-      if (!signMessage) {
+      if (!option.provider.signMessage) {
         throw new Error(
           "This wallet does not support message signing. Try another Solana wallet."
         );
       }
 
-      const result = await signMessage(
+      const result = await option.provider.signMessage(
         new TextEncoder().encode(challengePayload.data.message),
         "utf8"
       );
