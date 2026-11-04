@@ -50,45 +50,74 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const recentChallenges = await pool.query<{ total: string }>(
-      `SELECT COUNT(*)::text AS total
-       FROM wallet_link_challenges
-       WHERE user_id = $1
-         AND created_at > NOW() - INTERVAL '15 minutes'`,
-      [session.userId]
+    const reusableChallenge = await pool.query<{
+      id: string;
+      nonce: string;
+    }>(
+      `UPDATE wallet_link_challenges
+       SET expires_at = NOW() + INTERVAL '5 minutes'
+       WHERE id = (
+         SELECT id
+         FROM wallet_link_challenges
+         WHERE user_id = $1
+           AND wallet_address = $2
+           AND used_at IS NULL
+         ORDER BY created_at DESC
+         LIMIT 1
+       )
+       RETURNING id, nonce`,
+      [session.userId, body.address]
     );
+    let challenge = reusableChallenge.rows[0];
 
-    if (Number(recentChallenges.rows[0]?.total ?? "0") >= 5) {
-      return NextResponse.json(
-        { success: false, message: "Please wait before trying to link a wallet again" },
-        { status: 429 }
+    if (!challenge) {
+      const recentChallenges = await pool.query<{ total: string }>(
+        `SELECT COUNT(*)::text AS total
+         FROM wallet_link_challenges
+         WHERE user_id = $1
+           AND created_at > NOW() - INTERVAL '15 minutes'`,
+        [session.userId]
       );
+
+      if (Number(recentChallenges.rows[0]?.total ?? "0") >= 5) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: "Please wait before trying to link a wallet again",
+          },
+          { status: 429 }
+        );
+      }
+
+      const nonce = randomBytes(24).toString("base64url");
+      const createdChallenge = await pool.query<{
+        id: string;
+        nonce: string;
+      }>(
+        `INSERT INTO wallet_link_challenges (
+           user_id,
+           wallet_address,
+           nonce,
+           expires_at
+         )
+         VALUES ($1, $2, $3, NOW() + INTERVAL '5 minutes')
+         RETURNING id, nonce`,
+        [session.userId, body.address, nonce]
+      );
+      challenge = createdChallenge.rows[0];
     }
 
-    const nonce = randomBytes(24).toString("base64url");
-    const challenge = await pool.query<{ id: string }>(
-      `INSERT INTO wallet_link_challenges (
-         user_id,
-         wallet_address,
-         nonce,
-         expires_at
-       )
-       VALUES ($1, $2, $3, NOW() + INTERVAL '5 minutes')
-       RETURNING id`,
-      [session.userId, body.address, nonce]
-    );
-    const challengeId = challenge.rows[0].id;
     const message = [
       "Sign this message to link a Solana wallet to your BHID account.",
       `BHID account: ${session.userId}`,
       `Wallet: ${body.address}`,
-      `Nonce: ${nonce}`,
-      `Challenge: ${challengeId}`,
+      `Nonce: ${challenge.nonce}`,
+      `Challenge: ${challenge.id}`,
     ].join("\n");
 
     return NextResponse.json({
       success: true,
-      data: { challengeId, message, expiresInSeconds: 300 },
+      data: { challengeId: challenge.id, message, expiresInSeconds: 300 },
     });
   } catch (error) {
     console.error("Wallet challenge creation failed:", error);

@@ -167,10 +167,20 @@ export default function WalletSettings() {
 
   useEffect(() => {
     const controller = new AbortController();
-    const walletDetection = window.setTimeout(
-      () => setWallets(walletOptions()),
-      0
+    const detectWallets = () => {
+      const detectedWallets = walletOptions();
+      if (detectedWallets.length) {
+        setWallets(detectedWallets);
+      }
+    };
+    const walletDetection = window.setInterval(detectWallets, 500);
+    const stopWalletDetection = window.setTimeout(
+      () => window.clearInterval(walletDetection),
+      10000
     );
+    window.addEventListener("focus", detectWallets);
+    document.addEventListener("visibilitychange", detectWallets);
+    detectWallets();
 
     void loadWallet(controller.signal)
       .then(setWallet)
@@ -186,7 +196,10 @@ export default function WalletSettings() {
 
     return () => {
       controller.abort();
-      window.clearTimeout(walletDetection);
+      window.clearInterval(walletDetection);
+      window.clearTimeout(stopWalletDetection);
+      window.removeEventListener("focus", detectWallets);
+      document.removeEventListener("visibilitychange", detectWallets);
     };
   }, []);
 
