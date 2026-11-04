@@ -221,12 +221,17 @@ export default function DeveloperApplications() {
               className="mt-1 w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2"
               maxLength={128}
               onChange={(event) => setName(event.target.value)}
+              placeholder="My Storefront"
               required
               value={name}
             />
           </label>
           <label className="block text-sm">
             Unique slug
+            <p className="mt-1 text-xs text-zinc-400">
+              A unique, URL-friendly ID for this application. Use 2–63
+              lowercase letters, numbers, or hyphens.
+            </p>
             <input
               className="mt-1 w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2"
               maxLength={63}
@@ -237,6 +242,7 @@ export default function DeveloperApplications() {
                     .replace(/[^a-z0-9-]/g, "")
                 )
               }
+              placeholder="my-storefront"
               pattern="[a-z0-9][a-z0-9-]{1,62}"
               required
               value={slug}
@@ -248,6 +254,7 @@ export default function DeveloperApplications() {
               className="mt-1 w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2"
               maxLength={1000}
               onChange={(event) => setDescription(event.target.value)}
+              placeholder="Customer sign-in for the My Storefront website"
               rows={2}
               value={description}
             />
