@@ -179,6 +179,12 @@ export async function GET(request: NextRequest) {
       if (user.avatarUrl) {
         userInfo.picture = user.avatarUrl;
       }
+      if (user.bio) {
+        userInfo.bio = user.bio;
+      }
+      if (user.dateOfBirth) {
+        userInfo.birthdate = user.dateOfBirth;
+      }
     }
 
     if (grantedScopes.has("bhid")) {

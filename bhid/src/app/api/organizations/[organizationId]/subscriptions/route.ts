@@ -85,7 +85,7 @@ export async function POST(
 
     const planResult = await client.query<{
       name: string;
-      monthly_price_hbt: string;
+      monthly_price_hbt: string | null;
       is_active: boolean;
     }>(
       `SELECT name, monthly_price_hbt::text, is_active
@@ -98,6 +98,52 @@ export async function POST(
     if (!plan?.is_active || plan.monthly_price_hbt === null) {
       await client.query("ROLLBACK");
       return NextResponse.json({ error: "plan_unavailable" }, { status: 409 });
+    }
+
+    if (BigInt(plan.monthly_price_hbt) === BigInt(0)) {
+      await client.query(
+        `UPDATE public.subscriptions
+         SET status = 'CANCELED', canceled_at = now(), updated_at = now()
+         WHERE organization_id = $1
+           AND status IN (
+             'INCOMPLETE', 'TRIALING', 'ACTIVE', 'PAST_DUE'
+           )`,
+        [organizationId]
+      );
+      await client.query(
+        `UPDATE public.invoices
+         SET status = 'VOID'
+         WHERE organization_id = $1
+           AND status IN ('OPEN', 'OVERDUE')`,
+        [organizationId]
+      );
+      const freeSubscription = await client.query<{ id: string }>(
+        `INSERT INTO public.subscriptions (
+           organization_id, plan_id, status,
+           current_period_start, current_period_end
+         )
+         VALUES (
+           $1, $2, 'ACTIVE', current_date,
+           (current_date + interval '1 month')::date
+         )
+         RETURNING id`,
+        [organizationId, planId]
+      );
+      await client.query(
+        `INSERT INTO public.billing_events (
+           organization_id, subscription_id, event_type, payload
+         )
+         VALUES (
+           $1, $2, 'subscription.free_plan_activated',
+           jsonb_build_object('plan_id', $3)
+         )`,
+        [organizationId, freeSubscription.rows[0].id, planId]
+      );
+      await client.query("COMMIT");
+      return NextResponse.json(
+        { subscriptionId: freeSubscription.rows[0].id, status: "ACTIVE" },
+        { status: 201 }
+      );
     }
 
     const subscriptionResult = await client.query<{ id: string }>(

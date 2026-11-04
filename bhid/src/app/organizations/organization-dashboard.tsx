@@ -12,6 +12,11 @@ import OrganizationProfileForm from "@/components/organization-profile-form";
 import FounderOrganizationStatus from "@/components/founder-organization-status";
 import { isFounderAccount } from "@/lib/founder-access";
 import pool from "@/lib/db";
+import {
+  PLAN_FEATURE_NAMES,
+  PLAN_FEATURE_VALUES,
+  type PlanFeatureMatrix,
+} from "@/lib/organization-plans";
 
 type DashboardProps = {
   email: string;
@@ -45,8 +50,11 @@ type Plan = {
   description: string | null;
   monthly_price_hbt: string | null;
   included_hbt_tokens: string;
-  monthly_mau_limit: number;
-  monthly_api_limit: number;
+  monthly_mau_limit: number | null;
+  monthly_api_limit: number | null;
+  application_integration_limit: number | null;
+  plan_category: "BASIC" | "STANDARD" | "ADVANCED";
+  feature_matrix: PlanFeatureMatrix;
   is_active: boolean;
 };
 
@@ -239,6 +247,13 @@ function Section({
 }
 
 function FounderPlanForm({ plan }: { plan?: Plan }) {
+  const defaultFeatures = Object.fromEntries(
+    PLAN_FEATURE_NAMES.map((name) => [
+      name,
+      plan?.feature_matrix[name] ?? "—",
+    ])
+  );
+
   return (
     <form
       action={saveSubscriptionPlan}
@@ -277,6 +292,18 @@ function FounderPlanForm({ plan }: { plan?: Plan }) {
         />
       </label>
       <label className="text-sm text-zinc-300">
+        Plan category
+        <select
+          className="mt-1 w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-white"
+          defaultValue={plan?.plan_category ?? "STANDARD"}
+          name="plan_category"
+        >
+          <option value="BASIC">Basic</option>
+          <option value="STANDARD">Standard</option>
+          <option value="ADVANCED">Advanced</option>
+        </select>
+      </label>
+      <label className="text-sm text-zinc-300">
         Monthly price (HBT)
         <input
           className="mt-1 w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-white"
@@ -302,10 +329,10 @@ function FounderPlanForm({ plan }: { plan?: Plan }) {
         Monthly MAU limit
         <input
           className="mt-1 w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-white"
-          defaultValue={plan?.monthly_mau_limit ?? 0}
+          defaultValue={plan?.monthly_mau_limit ?? ""}
           min={0}
           name="monthly_mau_limit"
-          required
+          placeholder="Custom"
           type="number"
         />
       </label>
@@ -313,13 +340,45 @@ function FounderPlanForm({ plan }: { plan?: Plan }) {
         Monthly API calls limit
         <input
           className="mt-1 w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-white"
-          defaultValue={plan?.monthly_api_limit ?? 0}
+          defaultValue={plan?.monthly_api_limit ?? ""}
           min={0}
           name="monthly_api_limit"
-          required
+          placeholder="Custom"
           type="number"
         />
       </label>
+      <label className="text-sm text-zinc-300">
+        Application integrations
+        <input
+          className="mt-1 w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-white"
+          defaultValue={plan?.application_integration_limit ?? ""}
+          min={0}
+          name="application_integration_limit"
+          placeholder="Custom"
+          type="number"
+        />
+      </label>
+      <fieldset className="grid gap-3 rounded-lg border border-zinc-800 p-3 md:col-span-2 md:grid-cols-2">
+        <legend className="px-1 text-sm font-medium text-zinc-300">
+          Plan features
+        </legend>
+        {PLAN_FEATURE_NAMES.map((name) => (
+          <label className="text-xs text-zinc-400" key={name}>
+            {name}
+            <select
+              className="mt-1 w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-white"
+              defaultValue={defaultFeatures[name]}
+              name={`feature_${name}`}
+            >
+              {PLAN_FEATURE_VALUES.map((value) => (
+                <option key={value} value={value}>
+                  {value === "Included" ? "✓ Included" : value}
+                </option>
+              ))}
+            </select>
+          </label>
+        ))}
+      </fieldset>
       <label className="flex items-center gap-2 text-sm text-zinc-300 md:col-span-2">
         <input
           defaultChecked={plan?.is_active ?? false}
@@ -515,6 +574,7 @@ export default async function OrganizationDashboard({
         pool.query<Plan>(
           `SELECT id, slug, name, description, monthly_price_hbt::text,
                   included_hbt_tokens::text, monthly_mau_limit, monthly_api_limit,
+                  application_integration_limit, plan_category, feature_matrix,
                   is_active
            FROM public.subscription_plans
            WHERE is_active = true
@@ -788,7 +848,7 @@ export default async function OrganizationDashboard({
                         detail={
                           subscription?.monthly_mau_limit === null ||
                           subscription?.monthly_mau_limit === undefined
-                            ? "Plan limit not available"
+                            ? "Custom plan limit"
                             : `Limit: ${formatCount(subscription.monthly_mau_limit)} MAU · Remaining: ${formatCount(Math.max(0, subscription.monthly_mau_limit - Number(mau)))}`
                         }
                         title="Reported MAU"
@@ -798,7 +858,7 @@ export default async function OrganizationDashboard({
                         detail={
                           subscription?.monthly_api_limit === null ||
                           subscription?.monthly_api_limit === undefined
-                            ? "Plan limit not available"
+                            ? "Custom plan limit"
                             : `Limit: ${formatCount(subscription.monthly_api_limit)} calls · Remaining: ${formatCount(Math.max(0, subscription.monthly_api_limit - Number(apiCalls)))}`
                         }
                         title="API calls"
@@ -939,10 +999,14 @@ export default async function OrganizationDashboard({
                         plans={plansResult.rows.map((plan) => ({
                           id: plan.id,
                           name: plan.name,
+                          category: plan.plan_category,
                           description: plan.description,
                           price: plan.monthly_price_hbt,
                           monthlyMauLimit: plan.monthly_mau_limit,
                           monthlyApiLimit: plan.monthly_api_limit,
+                          applicationIntegrationLimit:
+                            plan.application_integration_limit,
+                          features: plan.feature_matrix,
                         }))}
                       />
                     ) : (
@@ -1077,6 +1141,7 @@ async function FounderDashboard() {
     pool.query<Plan>(
       `SELECT id, slug, name, description, monthly_price_hbt::text,
               included_hbt_tokens::text, monthly_mau_limit, monthly_api_limit,
+              application_integration_limit, plan_category, feature_matrix,
               is_active
        FROM public.subscription_plans
        ORDER BY sort_order, name`
@@ -1341,8 +1406,8 @@ async function FounderDashboard() {
       <section className="mt-8 rounded-xl border border-zinc-800 bg-zinc-900/40 p-5">
         <h2 className="text-xl font-semibold">Subscription plan configuration</h2>
         <p className="mt-2 text-sm text-zinc-400">
-          Set HBT prices and integer MAU/API limits explicitly before making a
-          plan available. No plan prices are pre-seeded.
+          Only the BHID founder can change this catalog. MAU, API, and
+          integration limits can be left blank for a custom limit.
         </p>
         <div className="mt-5 space-y-4">
           {plansResult.rows.map((plan) => (
@@ -1351,8 +1416,8 @@ async function FounderDashboard() {
           <FounderPlanForm />
         </div>
         <p className="mt-4 text-sm text-amber-200">
-          Payment records are not proof of settlement until their Solana
-          transactions are verified. No payment is initiated from this dashboard.
+          Paid organization subscriptions activate only after their Solana
+          transactions are verified. The Free Developer plan requires no payment.
         </p>
       </section>
     </div>

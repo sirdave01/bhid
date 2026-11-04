@@ -3,14 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState, type FormEvent } from "react";
 
-const OPTIONAL_SCOPES = [
-  ["email", "Email address and email-verification state"],
-  ["profile", "Display name, username, and profile picture"],
-  ["bhid", "Human-facing BHID identifier"],
-  ["verification", "Identity verification level"],
-  ["wallet", "Linked wallet addresses and ownership status"],
-  ["membership", "Paid membership tier and expiry"],
-] as const;
+import { OPTIONAL_OAUTH_SCOPE_GROUPS } from "@/lib/oauth-scopes";
 
 type ApplicationSummary = {
   id: string;
@@ -283,19 +276,34 @@ export default function DeveloperApplications() {
           </label>
           <fieldset>
             <legend className="text-sm font-medium">Permitted optional scopes</legend>
-            <div className="mt-2 space-y-2">
-              {OPTIONAL_SCOPES.map(([scope, detail]) => (
-                <label className="flex items-start gap-2 text-xs text-zinc-300" key={scope}>
-                  <input
-                    checked={allowedScopes.includes(scope)}
-                    onChange={() => toggleScope(scope)}
-                    type="checkbox"
-                    value={scope}
-                  />
-                  <span>
-                    <span className="font-mono">{scope}</span> — {detail}
-                  </span>
-                </label>
+            <div className="mt-3 grid gap-4 sm:grid-cols-2">
+              {OPTIONAL_OAUTH_SCOPE_GROUPS.map((group) => (
+                <fieldset
+                  className="rounded-lg border border-zinc-800 p-3"
+                  key={group.label}
+                >
+                  <legend className="px-1 text-xs font-semibold uppercase tracking-wide text-zinc-400">
+                    {group.label} scopes
+                  </legend>
+                  <div className="space-y-2">
+                    {group.scopes.map(([scope, detail]) => (
+                      <label
+                        className="flex items-start gap-2 text-xs text-zinc-300"
+                        key={scope}
+                      >
+                        <input
+                          checked={allowedScopes.includes(scope)}
+                          onChange={() => toggleScope(scope)}
+                          type="checkbox"
+                          value={scope}
+                        />
+                        <span>
+                          <span className="font-mono">{scope}</span> — {detail}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
               ))}
             </div>
           </fieldset>

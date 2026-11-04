@@ -299,6 +299,8 @@ export async function POST(request: NextRequest) {
          s.id AS session_id,
          p.display_name,
          p.username,
+         p.bio,
+         p.date_of_birth,
          p.avatar_key,
          p.avatar_url,
          p.wallet_address,
@@ -369,6 +371,11 @@ export async function POST(request: NextRequest) {
       emailVerified: user.email_verified_at !== null,
       displayName: user.display_name,
       username: user.username,
+      bio: user.bio,
+      dateOfBirth:
+        user.date_of_birth instanceof Date
+          ? user.date_of_birth.toISOString().slice(0, 10)
+          : user.date_of_birth,
       avatarUrl: getAvatarPublicUrl(user.avatar_key, user.avatar_url),
       verificationLevel: user.verification_level,
       walletAddress: user.wallet_address,

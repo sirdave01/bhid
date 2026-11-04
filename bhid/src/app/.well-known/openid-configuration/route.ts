@@ -27,6 +27,11 @@ export async function GET() {
       scopes_supported: [
         "openid",
         "profile",
+        "name",
+        "preferred_username",
+        "picture",
+        "bio",
+        "birthdate",
         "email",
         "bhid",
         "verification",

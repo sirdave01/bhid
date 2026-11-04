@@ -3,13 +3,23 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import {
+  PLAN_FEATURE_NAMES,
+  formatPlanFeature,
+  formatPlanLimit,
+  type PlanFeatureMatrix,
+} from "@/lib/organization-plans";
+
 type Plan = {
   id: string;
   name: string;
+  category: "BASIC" | "STANDARD" | "ADVANCED";
   price: string | null;
   description: string | null;
-  monthlyMauLimit: number;
-  monthlyApiLimit: number;
+  monthlyMauLimit: number | null;
+  monthlyApiLimit: number | null;
+  applicationIntegrationLimit: number | null;
+  features: PlanFeatureMatrix;
 };
 
 function formatPrice(value: string | null) {
@@ -17,7 +27,10 @@ function formatPrice(value: string | null) {
     return "Not configured";
   }
   try {
-    return `${BigInt(value).toLocaleString("en-US")} HBT`;
+    const price = BigInt(value);
+    return price === BigInt(0)
+      ? "Free"
+      : `${price.toLocaleString("en-US")} HBT`;
   } catch {
     return "Not configured";
   }
@@ -38,10 +51,13 @@ export default function OrganizationPlanSelector({
   const [error, setError] = useState("");
 
   async function selectPlan(plan: Plan) {
+    const isFree = plan.price !== null && BigInt(plan.price) === BigInt(0);
     if (
       busyPlan ||
       !window.confirm(
-        `Select ${plan.name}? An HBT invoice will be created. The subscription only becomes active after its Solana payment is verified.`
+        isFree
+          ? `Activate the free ${plan.name} plan? No payment is required.`
+          : `Select ${plan.name}? An HBT invoice will be created. The subscription only becomes active after its Solana payment is verified.`
       )
     ) {
       return;
@@ -77,16 +93,25 @@ export default function OrganizationPlanSelector({
         );
       }
 
-      setMessage(
-        `Invoice ${
-          typeof payload === "object" &&
-          payload !== null &&
-          "invoiceNumber" in payload &&
-          typeof payload.invoiceNumber === "string"
-            ? payload.invoiceNumber
-            : ""
-        } created. Verify its Solana payment to activate the plan.`
-      );
+      if (
+        typeof payload === "object" &&
+        payload !== null &&
+        "status" in payload &&
+        payload.status === "ACTIVE"
+      ) {
+        setMessage(`${plan.name} is active. No payment was required.`);
+      } else {
+        setMessage(
+          `Invoice ${
+            typeof payload === "object" &&
+            payload !== null &&
+            "invoiceNumber" in payload &&
+            typeof payload.invoiceNumber === "string"
+              ? payload.invoiceNumber
+              : ""
+          } created. Verify its Solana payment to activate the plan.`
+        );
+      }
       router.refresh();
     } catch (selectError) {
       setError(
@@ -102,34 +127,56 @@ export default function OrganizationPlanSelector({
   return (
     <div>
       <ul className="grid gap-3 md:grid-cols-2">
-        {plans.map((plan) => (
-          <li
-            className="rounded-lg border border-zinc-800 p-4"
-            key={plan.id}
-          >
-            <p className="font-medium">{plan.name}</p>
-            <p className="mt-1 text-sm text-zinc-400">
-              {plan.description || "No description"}
-            </p>
-            <p className="mt-2 text-sm text-zinc-300">
-              {formatPrice(plan.price)} / month ·{" "}
-              {Number(plan.monthlyMauLimit).toLocaleString("en-US")} MAU ·{" "}
-              {Number(plan.monthlyApiLimit).toLocaleString("en-US")} API calls
-            </p>
-            <button
-              className="mt-3 rounded-md border border-zinc-700 px-3 py-2 text-sm hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={Boolean(busyPlan) || plan.name === currentPlanName}
-              onClick={() => void selectPlan(plan)}
-              type="button"
+        {plans.map((plan) => {
+          const isFree = plan.price !== null && BigInt(plan.price) === BigInt(0);
+          return (
+            <li
+              className="rounded-lg border border-zinc-800 bg-zinc-950/40 p-4"
+              key={plan.id}
             >
-              {busyPlan === plan.id
-                ? "Creating invoice…"
-                : plan.name === currentPlanName
-                  ? "Current plan"
-                  : "Select plan"}
-            </button>
-          </li>
-        ))}
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="font-medium">{plan.name}</p>
+                <span className="rounded-full border border-indigo-800 px-2 py-0.5 text-xs text-indigo-200">
+                  {plan.category.charAt(0) +
+                    plan.category.slice(1).toLowerCase()}
+                </span>
+              </div>
+              <p className="mt-1 text-sm text-zinc-400">
+                {plan.description || "No description"}
+              </p>
+              <p className="mt-2 text-sm text-zinc-300">
+                {formatPrice(plan.price)} / month ·{" "}
+                {formatPlanLimit(plan.monthlyMauLimit)} MAU ·{" "}
+                {formatPlanLimit(plan.monthlyApiLimit)} API calls ·{" "}
+                {formatPlanLimit(plan.applicationIntegrationLimit)} integrations
+              </p>
+              <dl className="mt-4 grid gap-x-3 gap-y-2 border-t border-zinc-800 pt-3 text-xs sm:grid-cols-2">
+                {PLAN_FEATURE_NAMES.map((feature) => (
+                  <div className="flex justify-between gap-2" key={feature}>
+                    <dt className="text-zinc-500">{feature}</dt>
+                    <dd className="text-right text-zinc-300">
+                      {formatPlanFeature(plan.features[feature])}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+              <button
+                className="mt-3 rounded-md border border-zinc-700 px-3 py-2 text-sm hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={Boolean(busyPlan) || plan.name === currentPlanName}
+                onClick={() => void selectPlan(plan)}
+                type="button"
+              >
+                {busyPlan === plan.id
+                  ? isFree
+                    ? "Activating…"
+                    : "Creating invoice…"
+                  : plan.name === currentPlanName
+                    ? "Current plan"
+                    : "Select plan"}
+              </button>
+            </li>
+          );
+        })}
       </ul>
       {message && (
         <p className="mt-3 text-sm text-emerald-200" role="status">

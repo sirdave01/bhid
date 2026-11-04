@@ -14,7 +14,8 @@ type ConsentPromptProps = {
 const scopeDescriptions: Record<string, string> = {
   openid: "Confirm your BHID identity",
   email: "View your email address and verification status",
-  profile: "View your display name, username, and profile picture",
+  profile:
+    "View your display name, username, profile picture, bio, and date of birth",
   bhid: "View your BHID identifier",
   verification:
     "View your BHID verification level and tier",

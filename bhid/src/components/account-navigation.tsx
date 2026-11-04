@@ -4,7 +4,7 @@ import Link from "next/link";
 import { connection } from "next/server";
 import { Suspense } from "react";
 
-import SignOutButton from "@/components/sign-out-button";
+import AccountNavigationLinks from "@/components/account-navigation-links";
 import { isFounderAccount } from "@/lib/founder-access";
 import { getAuthenticatedSession } from "@/lib/session";
 
@@ -36,6 +36,7 @@ async function AccountNavigationContent() {
   await connection();
   const accessToken = (await cookies()).get("bhid_access")?.value;
   const session = await getAuthenticatedSession(accessToken);
+  const isFounder = isFounderAccount(session);
   const brand = (
     <Image
       alt="BHID"
@@ -49,7 +50,7 @@ async function AccountNavigationContent() {
   return (
     <nav
       aria-label="Account navigation"
-      className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-800 pb-4"
+      className="relative flex min-h-14 items-center justify-between gap-3 border-b border-zinc-800 pb-4"
     >
       {session ? (
         <span aria-label="BHID" className="flex items-center">
@@ -61,49 +62,10 @@ async function AccountNavigationContent() {
         </Link>
       )}
 
-      {session ? (
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-zinc-300">
-          <Link className="hover:text-white" href="/users">
-            Find people
-          </Link>
-          <Link className="hover:text-white" href="/settings/profile">
-            Profile
-          </Link>
-          <Link className="hover:text-white" href="/settings/security">
-            Security
-          </Link>
-          <Link className="hover:text-white" href="/settings/wallet">
-            Wallet
-          </Link>
-          <Link className="hover:text-white" href="/membership">
-            Membership
-          </Link>
-          <Link className="hover:text-white" href="/developers">
-            Developers
-          </Link>
-          <Link className="hover:text-white" href="/organizations">
-            Organizations
-          </Link>
-          <Link className="hover:text-white" href="/settings/password">
-            Password
-          </Link>
-          {isFounderAccount(session) && (
-            <Link className="hover:text-white" href="/founder">
-              Founder
-            </Link>
-          )}
-          <SignOutButton />
-        </div>
-      ) : (
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-zinc-300">
-          <Link className="hover:text-white" href="/login">
-            Sign in
-          </Link>
-          <Link className="hover:text-white" href="/register">
-            Create account
-          </Link>
-        </div>
-      )}
+      <AccountNavigationLinks
+        isAuthenticated={Boolean(session)}
+        isFounder={isFounder}
+      />
     </nav>
   );
 }

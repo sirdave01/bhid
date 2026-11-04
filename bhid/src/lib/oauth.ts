@@ -45,6 +45,8 @@ export type OAuthSessionRow = QueryResultRow & {
   verification_level: number;
   display_name: string | null;
   username: string | null;
+  bio: string | null;
+  date_of_birth: string | Date | null;
   avatar_key: string | null;
   avatar_url: string | null;
   wallet_address: string | null;
@@ -181,6 +183,8 @@ export type ActiveBhidSession = {
   emailVerified: boolean;
   displayName: string | null;
   username: string | null;
+  bio: string | null;
+  dateOfBirth: string | null;
   avatarUrl: string | null;
   verificationLevel: number;
   walletAddress: string | null;
@@ -346,6 +350,8 @@ export async function findActiveBhidSession(
        s.id AS session_id,
        p.display_name,
        p.username,
+       p.bio,
+       p.date_of_birth,
        p.avatar_key,
        p.avatar_url,
        p.wallet_address,
@@ -394,6 +400,11 @@ export async function findActiveBhidSession(
     emailVerified: user.email_verified_at !== null,
     displayName: user.display_name,
     username: user.username,
+    bio: user.bio,
+    dateOfBirth:
+      user.date_of_birth instanceof Date
+        ? user.date_of_birth.toISOString().slice(0, 10)
+        : user.date_of_birth,
     avatarUrl: getAvatarPublicUrl(user.avatar_key, user.avatar_url),
     verificationLevel: user.verification_level,
     walletAddress: user.wallet_address,
@@ -456,6 +467,12 @@ export function signOidcIdToken(
     }
     if (session.avatarUrl) {
       claims.picture = session.avatarUrl;
+    }
+    if (session.bio) {
+      claims.bio = session.bio;
+    }
+    if (session.dateOfBirth) {
+      claims.birthdate = session.dateOfBirth;
     }
   }
 
