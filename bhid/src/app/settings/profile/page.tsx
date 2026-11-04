@@ -2,6 +2,7 @@
 import type { Metadata } from "next";
 
 import AccountNavigation from "@/components/account-navigation";
+import DeleteAccountButton from "@/components/delete-account-button";
 import ProfileSettings from "../security/profile-settings";
 
 export const metadata: Metadata = {
@@ -32,6 +33,7 @@ export default function ProfileSettingsPage() {
       </header>
 
       <ProfileSettings />
+      <DeleteAccountButton />
     </main>
   );
 }

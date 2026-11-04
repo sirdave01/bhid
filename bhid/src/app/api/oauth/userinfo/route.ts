@@ -11,6 +11,7 @@ import {
 } from "@/lib/oauth";
 import { getVerificationTier } from "@/lib/verification";
 import pool from "@/lib/db";
+import { recordOrganizationUsage } from "@/lib/organization-usage";
 
 function userInfoHeaders(corsOrigin: string | null = null) {
   const headers = new Headers({
@@ -227,6 +228,8 @@ export async function GET(request: NextRequest) {
           user.membershipExpiresAt.toISOString();
       }
     }
+
+    await recordOrganizationUsage(application.id, user.userId);
 
     return NextResponse.json(userInfo, {
       headers: userInfoHeaders(corsOrigin),

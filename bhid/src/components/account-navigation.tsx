@@ -81,6 +81,9 @@ async function AccountNavigationContent() {
           <Link className="hover:text-white" href="/developers">
             Developers
           </Link>
+          <Link className="hover:text-white" href="/organizations">
+            Organizations
+          </Link>
           <Link className="hover:text-white" href="/settings/password">
             Password
           </Link>

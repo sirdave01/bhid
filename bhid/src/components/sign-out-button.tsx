@@ -37,9 +37,9 @@ export default function SignOutButton() {
   }
 
   return (
-    <div className="flex flex-col items-end">
+    <div className="relative flex min-h-10 items-center">
       <button
-        className="rounded-lg border border-zinc-700 px-3 py-2 text-sm font-medium text-white hover:border-zinc-500 hover:bg-zinc-800 disabled:opacity-60"
+        className="min-h-10 rounded-lg border border-zinc-700 px-3 py-2 text-sm font-medium leading-5 text-white hover:border-zinc-500 hover:bg-zinc-800 disabled:opacity-60"
         disabled={signingOut}
         onClick={() => void signOut()}
         type="button"
@@ -47,7 +47,10 @@ export default function SignOutButton() {
         {signingOut ? "Signing out…" : "Sign out"}
       </button>
       {error ? (
-        <p className="mt-1 max-w-48 text-right text-xs text-red-300" role="alert">
+        <p
+          className="absolute right-0 top-full z-10 mt-1 w-48 text-right text-xs text-red-300"
+          role="alert"
+        >
           {error}
         </p>
       ) : null}

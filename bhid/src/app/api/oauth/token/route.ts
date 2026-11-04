@@ -246,6 +246,13 @@ export async function POST(request: NextRequest) {
          AND ac.used_at IS NULL
          AND ac.expires_at > NOW()
          AND app.status = 'ACTIVE'
+         AND NOT EXISTS (
+           SELECT 1
+           FROM public.organization_applications AS oa
+           JOIN public.organizations AS o ON o.id = oa.organization_id
+           WHERE oa.application_id = app.id
+             AND o.status = 'SUSPENDED'
+         )
          AND app.redirect_uris @> ARRAY[ac.redirect_uri]
        FOR UPDATE OF ac, app`,
       [codeHash, application.id, redirectUri]
@@ -341,6 +348,16 @@ export async function POST(request: NextRequest) {
        SET used_at = NOW()
        WHERE id = $1`,
       [authorizationCode.id]
+    );
+
+    await client.query(
+      `INSERT INTO public.application_authentication_logs (
+         organization_id, application_id, user_id, event_type
+       )
+       SELECT organization_id, application_id, $2, 'LOGIN_SUCCESS'
+       FROM public.organization_applications
+       WHERE application_id = $1`,
+      [application.id, authorizationCode.user_id]
     );
 
     const activeSession = {

@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { isFounderAccount } from "@/lib/founder-access";
+import { getAppBaseUrl } from "@/lib/app-base-url";
 import pool from "@/lib/db";
+import { permanentlyDeleteUser } from "@/lib/permanently-delete-user";
 import { getAuthenticatedSession } from "@/lib/session";
 
 const UUID_PATTERN =
@@ -34,6 +36,85 @@ type UserAction = keyof typeof actions;
 
 function isUserAction(value: unknown): value is UserAction {
   return typeof value === "string" && value in actions;
+}
+
+export async function DELETE(
+  request: NextRequest,
+  context: RouteContext<"/api/founder/users/[userId]">
+) {
+  const { userId } = await context.params;
+
+  if (!UUID_PATTERN.test(userId)) {
+    return NextResponse.json(
+      { success: false, message: "Invalid user ID" },
+      { status: 400 }
+    );
+  }
+
+  try {
+    const origin = request.headers.get("origin");
+    if (!origin || origin !== getAppBaseUrl()) {
+      return NextResponse.json(
+        { success: false, message: "Invalid request origin" },
+        { status: 400 }
+      );
+    }
+
+    const session = await getAuthenticatedSession(
+      request.cookies.get("bhid_access")?.value
+    );
+
+    if (!session) {
+      return NextResponse.json(
+        { success: false, message: "Authentication required" },
+        { status: 401 }
+      );
+    }
+
+    if (!isFounderAccount(session)) {
+      return NextResponse.json(
+        { success: false, message: "Not found" },
+        { status: 404 }
+      );
+    }
+
+    if (userId === session.userId) {
+      return NextResponse.json(
+        { success: false, message: "You cannot delete your own account" },
+        { status: 400 }
+      );
+    }
+
+    const result = await permanentlyDeleteUser(userId);
+
+    if (!result.deleted) {
+      if (result.blockedByOrganizations > 0) {
+        return NextResponse.json(
+          {
+            success: false,
+            message:
+              "Transfer ownership of this user's organization(s) before deleting the account.",
+          },
+          { status: 409 }
+        );
+      }
+      return NextResponse.json(
+        { success: false, message: "Account not found" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      avatarCleanupWarning: result.avatarCleanupWarning,
+    });
+  } catch (error) {
+    console.error("Founder permanent account deletion failed:", error);
+    return NextResponse.json(
+      { success: false, message: "Unable to permanently delete this account" },
+      { status: 500 }
+    );
+  }
 }
 
 export async function PATCH(

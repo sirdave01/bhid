@@ -9,6 +9,9 @@ BHID is an identity service for ByteHaven products and applications that integra
 - OAuth 2.0 and OpenID Connect sign-in for registered applications
 - User-approved sharing of profile, verification, wallet, and membership information
 - Profile and account security settings
+- Organization administration and role-based application access
+- Organization subscriptions, usage, invoices, and payment tracking
+- Permanent account deletion from profile settings and founder administration
 
 ## Technology
 

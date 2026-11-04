@@ -254,6 +254,13 @@ export async function findOAuthApplication(
      FROM applications
      WHERE client_id = $1
        AND status = 'ACTIVE'
+       AND NOT EXISTS (
+         SELECT 1
+         FROM public.organization_applications AS oa
+         JOIN public.organizations AS o ON o.id = oa.organization_id
+         WHERE oa.application_id = applications.id
+           AND o.status = 'SUSPENDED'
+       )
      LIMIT 1`,
     [clientId]
   );

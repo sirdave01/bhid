@@ -158,12 +158,16 @@ async function getTokenAccountOwner(
   return { mint: info.mint, owner: info.owner };
 }
 
-export async function verifyHbtPayment(
+export async function verifyHbtTransfer(
   config: HbtPaymentConfig,
   signature: string,
   linkedWallet: string,
-  tier: Exclude<MembershipTier, "BASIC">
+  requestedAmount: bigint
 ) {
+  if (requestedAmount <= BigInt(0)) {
+    throw new InvalidPaymentError("Payment amount must be greater than zero.");
+  }
+
   const statuses = await callRpc<{
     value: { confirmationStatus?: string | null; err?: unknown }[];
   }>(config, "getSignatureStatuses", [
@@ -217,7 +221,6 @@ export async function verifyHbtPayment(
       (inner) => inner.instructions
     ),
   ];
-  const requestedAmount = PAID_MEMBERSHIP_PRICES[tier];
   const paymentTransfers = instructions.filter((instruction) => {
     const info = instruction.parsed?.info;
     const amount = info?.tokenAmount?.amount;
@@ -246,7 +249,7 @@ export async function verifyHbtPayment(
 
   if (paymentTransfers.length !== 1) {
     throw new InvalidPaymentError(
-      `Transaction must contain exactly one ${tier} payment in HBT.`
+      "Transaction must contain exactly one payment in the configured HBT amount."
     );
   }
 
@@ -274,4 +277,18 @@ export async function verifyHbtPayment(
       BigInt(10) ** BigInt(transfer.tokenAmount!.decimals!)
     ).toString(),
   };
+}
+
+export function verifyHbtPayment(
+  config: HbtPaymentConfig,
+  signature: string,
+  linkedWallet: string,
+  tier: Exclude<MembershipTier, "BASIC">
+) {
+  return verifyHbtTransfer(
+    config,
+    signature,
+    linkedWallet,
+    PAID_MEMBERSHIP_PRICES[tier]
+  );
 }

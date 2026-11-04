@@ -3,7 +3,12 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-type UserAction = "suspend" | "unsuspend" | "delete" | "restore";
+type UserAction =
+  | "suspend"
+  | "unsuspend"
+  | "delete"
+  | "restore"
+  | "permanently_delete";
 
 type FounderUserActionsProps = {
   userId: string;
@@ -20,6 +25,8 @@ function getActionLabel(action: UserAction) {
       return "Delete";
     case "restore":
       return "Restore";
+    case "permanently_delete":
+      return "Delete permanently";
   }
 }
 
@@ -33,6 +40,8 @@ function getConfirmationMessage(action: UserAction) {
       return "Mark this account as deleted? Its sessions will be revoked and it will no longer be able to sign in. Account data will be retained.";
     case "restore":
       return "Restore this deleted account and allow it to sign in again?";
+    case "permanently_delete":
+      return "Permanently delete this account and its associated data? This cannot be undone.";
   }
 }
 
@@ -43,14 +52,15 @@ export default function FounderUserActions({
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [warning, setWarning] = useState("");
 
   const actions: UserAction[] =
     status === "ACTIVE"
-      ? ["suspend", "delete"]
+      ? ["suspend", "delete", "permanently_delete"]
       : status === "SUSPENDED"
-        ? ["unsuspend", "delete"]
+        ? ["unsuspend", "delete", "permanently_delete"]
         : status === "DELETED"
-          ? ["restore"]
+          ? ["restore", "permanently_delete"]
           : [];
 
   async function runAction(action: UserAction) {
@@ -60,12 +70,15 @@ export default function FounderUserActions({
 
     setBusy(true);
     setError("");
+    setWarning("");
 
     try {
       const response = await fetch(`/api/founder/users/${userId}`, {
-        method: "PATCH",
+        method: action === "permanently_delete" ? "DELETE" : "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action }),
+        ...(action === "permanently_delete"
+          ? {}
+          : { body: JSON.stringify({ action }) }),
       });
       const payload: unknown = await response.json();
 
@@ -86,6 +99,15 @@ export default function FounderUserActions({
         throw new Error(message);
       }
 
+      if (
+        action === "permanently_delete" &&
+        "avatarCleanupWarning" in payload &&
+        payload.avatarCleanupWarning === true
+      ) {
+        setWarning(
+          "Account deleted, but its profile image could not be removed."
+        );
+      }
       router.refresh();
     } catch (actionError) {
       setError(
@@ -103,7 +125,11 @@ export default function FounderUserActions({
       <div className="flex flex-wrap gap-2">
         {actions.map((action) => (
           <button
-            className="rounded border border-zinc-300 px-2 py-1 text-xs font-medium text-zinc-800 hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-50"
+            className={`rounded border px-2 py-1 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-50 ${
+              action === "permanently_delete"
+                ? "border-red-300 text-red-800 hover:bg-red-50"
+                : "border-zinc-300 text-zinc-800 hover:bg-zinc-100"
+            }`}
             disabled={busy}
             key={action}
             onClick={() => void runAction(action)}
@@ -117,6 +143,11 @@ export default function FounderUserActions({
       {error && (
         <p className="max-w-48 text-xs text-red-700" role="alert">
           {error}
+        </p>
+      )}
+      {warning && (
+        <p className="max-w-48 text-xs text-amber-700" role="status">
+          {warning}
         </p>
       )}
     </div>

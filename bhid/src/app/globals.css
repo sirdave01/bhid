@@ -24,3 +24,17 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+main.bg-zinc-950 {
+  background-image:
+    radial-gradient(
+      900px ellipse at 8% -10%,
+      rgb(79 70 229 / 0.16),
+      transparent 65%
+    ),
+    radial-gradient(
+      760px ellipse at 100% 20%,
+      rgb(14 116 144 / 0.1),
+      transparent 60%
+    );
+}
