@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { connection } from "next/server";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
+import Link from "next/link";
 
 import AccountNavigation from "@/components/account-navigation";
 import DeveloperApplications from "@/components/developer-applications";
@@ -54,6 +55,12 @@ async function DeveloperPortalContent() {
             scopes, and rotate confidential client secrets. You can only manage
             applications that you own.
           </p>
+          <Link
+            className="mt-3 inline-block text-sm text-indigo-300 underline"
+            href="/developers/profile-lookup"
+          >
+            Profile lookup and UserInfo guide
+          </Link>
         </header>
         <section
           aria-labelledby="developer-setup-heading"
