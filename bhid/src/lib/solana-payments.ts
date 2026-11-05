@@ -26,6 +26,9 @@ type ParsedTokenAccount = {
         info?: {
           mint?: string;
           owner?: string;
+          tokenAmount?: {
+            decimals?: number;
+          };
         };
       };
     };
@@ -38,6 +41,7 @@ type ParsedInstruction = {
     type?: string;
     info?: {
       mint?: string;
+      amount?: string;
       source?: string;
       destination?: string;
       tokenAmount?: {
@@ -145,17 +149,22 @@ async function getTokenAccountOwner(
   );
   const account = result.value;
   const info = account?.data.parsed?.info;
+  const decimals = info?.tokenAmount?.decimals;
 
   if (
     !account ||
     !SPL_TOKEN_PROGRAMS.has(account.owner) ||
     !info?.mint ||
-    !info.owner
+    !info.owner ||
+    typeof decimals !== "number" ||
+    !Number.isInteger(decimals) ||
+    decimals < 0 ||
+    decimals > 18
   ) {
     throw new InvalidPaymentError("Payment does not use a valid HBT token account.");
   }
 
-  return { mint: info.mint, owner: info.owner };
+  return { mint: info.mint, owner: info.owner, decimals };
 }
 
 export async function verifyHbtTransfer(
@@ -221,31 +230,102 @@ export async function verifyHbtTransfer(
       (inner) => inner.instructions
     ),
   ];
-  const paymentTransfers = instructions.filter((instruction) => {
+  const tokenTransfers = instructions.flatMap((instruction) => {
+    const type = instruction.parsed?.type;
     const info = instruction.parsed?.info;
-    const amount = info?.tokenAmount?.amount;
-    const decimals = info?.tokenAmount?.decimals;
+    const programId =
+      instruction.program === "spl-token"
+        ? "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        : instruction.program === "spl-token-2022"
+          ? "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
+          : "";
 
-    return (
-      SPL_TOKEN_PROGRAMS.has(
-        instruction.program === "spl-token"
-          ? "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
-          : instruction.program === "spl-token-2022"
-            ? "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
-            : ""
-      ) &&
-      instruction.parsed?.type === "transferChecked" &&
-      info?.mint === config.mint &&
-      typeof info.source === "string" &&
-      typeof info.destination === "string" &&
-      typeof amount === "string" &&
-      /^\d+$/.test(amount) &&
-      Number.isInteger(decimals) &&
-      decimals! >= 0 &&
-      decimals! <= 18 &&
-      BigInt(amount) === requestedAmount * BigInt(10) ** BigInt(decimals!)
-    );
+    if (
+      !SPL_TOKEN_PROGRAMS.has(programId) ||
+      (type !== "transfer" && type !== "transferChecked") ||
+      typeof info?.source !== "string" ||
+      typeof info.destination !== "string"
+    ) {
+      return [];
+    }
+
+    const amount =
+      type === "transferChecked"
+        ? info.tokenAmount?.amount
+        : info.amount;
+    const decimals =
+      type === "transferChecked" ? info.tokenAmount?.decimals : undefined;
+
+    if (
+      typeof amount !== "string" ||
+      !/^\d{1,20}$/.test(amount) ||
+      (type === "transferChecked" &&
+        (typeof info.mint !== "string" ||
+          typeof decimals !== "number" ||
+          !Number.isInteger(decimals) ||
+          decimals < 0 ||
+          decimals > 18))
+    ) {
+      return [];
+    }
+
+    return [{
+      type,
+      source: info.source,
+      destination: info.destination,
+      mint: info.mint,
+      amount,
+      decimals,
+    }];
   });
+
+  const isRequestedAmount = (amount: string, decimals: number) =>
+    BigInt(amount) === requestedAmount * BigInt(10) ** BigInt(decimals);
+  const checkedTransfers = tokenTransfers.filter(
+    (transfer) =>
+      transfer.type === "transferChecked" &&
+      transfer.mint === config.mint &&
+      transfer.decimals !== undefined &&
+      isRequestedAmount(transfer.amount, transfer.decimals)
+  );
+  const rawTransferCandidates = tokenTransfers.filter(
+    (transfer) =>
+      transfer.type === "transfer" &&
+      Array.from({ length: 19 }, (_, decimals) =>
+        isRequestedAmount(transfer.amount, decimals)
+      ).some(Boolean)
+  );
+  // Unchecked transfers omit mint and decimals, so resolve them from their token accounts.
+  const rawTransfers = await Promise.all(
+    rawTransferCandidates.map(async (transfer) => {
+      const [source, destination] = await Promise.all([
+        getTokenAccountOwner(config, transfer.source),
+        getTokenAccountOwner(config, transfer.destination),
+      ]);
+
+      if (
+        source.mint !== config.mint ||
+        destination.mint !== config.mint ||
+        source.decimals !== destination.decimals ||
+        !isRequestedAmount(transfer.amount, source.decimals)
+      ) {
+        return null;
+      }
+
+      return { transfer, source, destination };
+    })
+  );
+  const paymentTransfers = [
+    ...checkedTransfers.map((transfer) => ({ transfer, accounts: null })),
+    ...rawTransfers
+      .filter(
+        (payment): payment is NonNullable<typeof payment> => payment !== null
+      )
+      .map(({ transfer, source, destination }) => ({
+        transfer,
+        accounts: { source, destination },
+      })),
+  ];
 
   if (paymentTransfers.length !== 1) {
     throw new InvalidPaymentError(
@@ -253,17 +333,26 @@ export async function verifyHbtTransfer(
     );
   }
 
-  const transfer = paymentTransfers[0].parsed!.info!;
-  const [source, destination] = await Promise.all([
-    getTokenAccountOwner(config, transfer.source!),
-    getTokenAccountOwner(config, transfer.destination!),
-  ]);
+  const payment = paymentTransfers[0];
+  let tokenAccounts: {
+    source: Awaited<ReturnType<typeof getTokenAccountOwner>>;
+    destination: Awaited<ReturnType<typeof getTokenAccountOwner>>;
+  };
+  if (payment.accounts) {
+    tokenAccounts = payment.accounts;
+  } else {
+    const [source, destination] = await Promise.all([
+      getTokenAccountOwner(config, payment.transfer.source),
+      getTokenAccountOwner(config, payment.transfer.destination),
+    ]);
+    tokenAccounts = { source, destination };
+  }
 
   if (
-    source.owner !== linkedWallet ||
-    destination.owner !== config.treasury ||
-    source.mint !== config.mint ||
-    destination.mint !== config.mint
+    tokenAccounts.source.owner !== linkedWallet ||
+    tokenAccounts.destination.owner !== config.treasury ||
+    tokenAccounts.source.mint !== config.mint ||
+    tokenAccounts.destination.mint !== config.mint
   ) {
     throw new InvalidPaymentError(
       "Payment must be HBT from your verified linked wallet to the BHID treasury."
@@ -274,7 +363,7 @@ export async function verifyHbtTransfer(
     paidAt: new Date(transaction.blockTime * 1000),
     amountBaseUnits: (
       requestedAmount *
-      BigInt(10) ** BigInt(transfer.tokenAmount!.decimals!)
+      BigInt(10) ** BigInt(tokenAccounts.source.decimals)
     ).toString(),
   };
 }
