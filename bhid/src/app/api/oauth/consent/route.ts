@@ -57,6 +57,27 @@ function callbackUrl(redirectUri: string, state: string, code?: string) {
   return callback.toString();
 }
 
+type ConsentBody = {
+  requestId: string;
+  decision: "approve" | "deny";
+  scopes: string[];
+};
+
+function isConsentBody(value: unknown): value is ConsentBody {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "requestId" in value &&
+    typeof value.requestId === "string" &&
+    UUID_PATTERN.test(value.requestId) &&
+    "decision" in value &&
+    (value.decision === "approve" || value.decision === "deny") &&
+    "scopes" in value &&
+    Array.isArray(value.scopes) &&
+    value.scopes.every((scope) => typeof scope === "string")
+  );
+}
+
 export async function GET(request: NextRequest) {
   const requestId = request.nextUrl.searchParams.get("request_id");
 
@@ -104,6 +125,12 @@ export async function GET(request: NextRequest) {
       {
         applicationName: pending.application_name,
         scopes: pending.scopes,
+        account: {
+          bhid: session.bhid,
+          displayName: session.displayName,
+          username: session.username,
+          avatarUrl: session.avatarUrl,
+        },
       },
       { headers: { "Cache-Control": "no-store" } }
     );
@@ -130,15 +157,7 @@ export async function POST(request: NextRequest) {
     return invalidRequest();
   }
 
-  if (
-    typeof body !== "object" ||
-    body === null ||
-    !("requestId" in body) ||
-    typeof body.requestId !== "string" ||
-    !UUID_PATTERN.test(body.requestId) ||
-    !("decision" in body) ||
-    (body.decision !== "approve" && body.decision !== "deny")
-  ) {
+  if (!isConsentBody(body)) {
     return invalidRequest();
   }
 
@@ -225,12 +244,20 @@ export async function POST(request: NextRequest) {
         "wallet",
         "membership",
       ]);
+      const requestedScopes: string[] = authorizationRequest.scopes;
+      const selectedScopes = body.scopes;
       if (
-        authorizationRequest.scopes.some(
+        !requestedScopes.includes("openid") ||
+        new Set(selectedScopes).size !== selectedScopes.length ||
+        !selectedScopes.includes("openid") ||
+        requestedScopes.some(
           (scope: string) =>
             !supportedScopes.has(scope) ||
             (scope !== "openid" &&
               !(authorizationRequest.allowed_scopes ?? []).includes(scope))
+        ) ||
+        selectedScopes.some(
+          (scope) => !requestedScopes.includes(scope)
         )
       ) {
         await client.query("ROLLBACK");
@@ -260,6 +287,23 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      const existingConsentResult = await client.query<{ scopes: string[] }>(
+        `SELECT scopes
+         FROM oauth_consents
+         WHERE application_id = $1
+           AND user_id = $2
+           AND revoked_at IS NULL
+         FOR UPDATE`,
+        [authorizationRequest.application_id, session.userId]
+      );
+      const requestedScopeSet = new Set(requestedScopes);
+      const retainedScopes = (
+        existingConsentResult.rows[0]?.scopes ?? []
+      ).filter((scope) => !requestedScopeSet.has(scope));
+      const grantedScopes = [
+        ...new Set([...retainedScopes, ...selectedScopes]),
+      ];
+
       await client.query(
         `INSERT INTO oauth_consents (
            application_id,
@@ -269,18 +313,13 @@ export async function POST(request: NextRequest) {
          VALUES ($1, $2, $3)
          ON CONFLICT (application_id, user_id)
          DO UPDATE SET
-           scopes = ARRAY(
-             SELECT DISTINCT scope
-             FROM unnest(
-               oauth_consents.scopes || EXCLUDED.scopes
-             ) AS granted(scope)
-           ),
+           scopes = EXCLUDED.scopes,
            granted_at = NOW(),
            revoked_at = NULL`,
         [
           authorizationRequest.application_id,
           session.userId,
-          authorizationRequest.scopes,
+          grantedScopes,
         ]
       );
 
@@ -307,7 +346,7 @@ export async function POST(request: NextRequest) {
           session.sessionId,
           session.authVersion,
           authorizationRequest.redirect_uri,
-          authorizationRequest.scopes,
+          selectedScopes,
           authorizationRequest.code_challenge,
           authorizationRequest.nonce,
           OAUTH_AUTHORIZATION_CODE_SECONDS,

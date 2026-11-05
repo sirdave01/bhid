@@ -1,10 +1,19 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
+
+import AccountAvatar from "@/components/account-avatar";
 
 type ConsentData = {
   applicationName: string;
   scopes: string[];
+  account: {
+    bhid: string;
+    displayName: string | null;
+    username: string | null;
+    avatarUrl: string | null;
+  };
 };
 
 type ConsentPromptProps = {
@@ -12,7 +21,7 @@ type ConsentPromptProps = {
 };
 
 const scopeDescriptions: Record<string, string> = {
-  openid: "Confirm your BHID identity",
+  openid: "Sign in with BHID (required)",
   email: "View your email address and verification status",
   profile:
     "View your display name, username, profile picture, bio, and date of birth",
@@ -31,6 +40,7 @@ export default function ConsentPrompt({
   requestId,
 }: ConsentPromptProps) {
   const [consent, setConsent] = useState<ConsentData | null>(null);
+  const [selectedScopes, setSelectedScopes] = useState<string[]>([]);
   const [error, setError] = useState(
     REQUEST_ID_PATTERN.test(requestId)
       ? ""
@@ -60,6 +70,7 @@ export default function ConsentPrompt({
 
         if (!cancelled) {
           setConsent(data);
+          setSelectedScopes(data.scopes);
         }
       } catch {
         if (!cancelled) {
@@ -88,7 +99,11 @@ export default function ConsentPrompt({
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ requestId, decision }),
+        body: JSON.stringify({
+          requestId,
+          decision,
+          scopes: selectedScopes,
+        }),
       });
 
       if (!response.ok) {
@@ -118,21 +133,83 @@ export default function ConsentPrompt({
     >
       {consent ? (
         <>
+          <div className="mt-5 flex items-center gap-4 rounded-lg border border-gray-200 p-4">
+            <AccountAvatar
+              avatarUrl={consent.account.avatarUrl}
+              displayName={
+                consent.account.displayName ||
+                consent.account.username ||
+                "BHID account"
+              }
+              size={64}
+            />
+            <div className="min-w-0">
+              <Link
+                className="font-semibold text-indigo-700 underline"
+                href="/settings/profile"
+              >
+                {consent.account.displayName ||
+                  (consent.account.username
+                    ? `@${consent.account.username}`
+                    : "Your BHID account")}
+              </Link>
+              {consent.account.displayName && consent.account.username ? (
+                <p className="text-sm text-gray-600">
+                  @{consent.account.username}
+                </p>
+              ) : null}
+              <p className="mt-1 break-all font-mono text-xs text-gray-600">
+                BHID ID: {consent.account.bhid}
+              </p>
+              <p className="mt-1 text-xs text-gray-500">
+                Click your name to manage this profile. Click the picture to
+                enlarge it.
+              </p>
+            </div>
+          </div>
           <p className="font-medium">
             <span className="font-semibold">{consent.applicationName}</span>{" "}
-            requests access to:
+            requests access to the following:
           </p>
-          <ul className="mt-4 list-disc space-y-2 pl-6">
+          <fieldset className="mt-4 space-y-2">
+            <legend className="sr-only">Choose information to share</legend>
             {consent.scopes.map((scope) => (
-              <li key={scope}>
-                {scopeDescriptions[scope] ?? `Access to ${scope}`}
-              </li>
+              <label
+                className="flex items-start gap-3 rounded-md border border-gray-200 p-3"
+                key={scope}
+              >
+                <input
+                  checked={selectedScopes.includes(scope)}
+                  className="mt-1 h-4 w-4 accent-indigo-600"
+                  disabled={scope === "openid" || busy}
+                  onChange={(event) => {
+                    setSelectedScopes((current) =>
+                      event.target.checked
+                        ? [...current, scope]
+                        : current.filter((selected) => selected !== scope)
+                    );
+                  }}
+                  type="checkbox"
+                />
+                <span>
+                  {scopeDescriptions[scope] ?? `Access to ${scope}`}
+                  {scope === "openid" ? (
+                    <span className="mt-1 block text-xs text-gray-500">
+                      This permission is required to sign in.
+                    </span>
+                  ) : null}
+                </span>
+              </label>
             ))}
-          </ul>
+          </fieldset>
+          <p className="mt-3 text-sm text-gray-600">
+            Only checked information will be shared. You can uncheck optional
+            items and still sign in.
+          </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <button
               className="rounded-md bg-black px-4 py-2 font-medium text-white disabled:opacity-60"
-              disabled={busy}
+              disabled={busy || !selectedScopes.includes("openid")}
               onClick={() => void decide("approve")}
               type="button"
             >
